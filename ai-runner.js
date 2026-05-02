@@ -14,6 +14,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const taskName = process.argv[2];
 const shouldApply = process.argv.includes("--apply");
+
 const frontendComponents = fs.existsSync("./ai/frontend-components.md")
   ? fs.readFileSync("./ai/frontend-components.md", "utf-8")
   : "";
@@ -60,6 +61,63 @@ function normalizePath(filePath) {
 
 function isAllowedPath(filePath) {
   return ALLOWED_PATHS.some((path) => filePath.startsWith(path));
+}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractBlocks(output, marker) {
+  const escapedMarker = escapeRegExp(marker);
+
+  const regex = new RegExp(
+    `${escapedMarker}\\s*([^\\n]+)\\n([\\s\\S]*?)(?=\\n#\\s*(?:CREATE|MANUAL_UPDATE):|$)`,
+    "g",
+  );
+
+  const blocks = [];
+  let match;
+
+  while ((match = regex.exec(output)) !== null) {
+    const filePath = match[1].trim();
+    const content = cleanContent(match[2]);
+
+    if (!filePath || !content) continue;
+
+    blocks.push(`${marker} ${filePath}\n${content}`);
+  }
+
+  return blocks;
+}
+
+function saveSeparatedOutputs(output, taskName) {
+  fs.mkdirSync("./ai/output", { recursive: true });
+
+  const createBlocks = extractBlocks(output, "# CREATE:");
+  const manualUpdateBlocks = extractBlocks(output, "# MANUAL_UPDATE:");
+
+  const createOutputPath = `./ai/output/creates-${taskName}.md`;
+  const manualOutputPath = `./ai/output/manual-updates-${taskName}.md`;
+
+  const createBlocksText =
+    createBlocks.length > 0
+      ? createBlocks.join("\n\n")
+      : "Nenhum arquivo novo foi sugerido.";
+
+  const manualBlocksText =
+    manualUpdateBlocks.length > 0
+      ? manualUpdateBlocks.join("\n\n")
+      : "Nenhuma alteração manual foi sugerida.";
+
+  fs.writeFileSync(createOutputPath, createBlocksText);
+  fs.writeFileSync(manualOutputPath, manualBlocksText);
+
+  return {
+    createOutputPath,
+    manualOutputPath,
+    createBlocksText,
+    manualBlocksText,
+  };
 }
 
 function applyCreatesOnly(output) {
@@ -156,6 +214,7 @@ REGRAS:
 - Nunca sobrescreva routes/api.php.
 - Nunca sobrescreva services existentes.
 - Nunca sobrescreva telas existentes.
+- Reutilize os componentes descritos em frontend-components.md.
 - Não use markdown.
 - Não use blocos com crase.
 - Não escreva explicações fora dos blocos.
@@ -184,60 +243,79 @@ REGRAS:
       console.log(`\n🔥 Modelo usado: ${modelName}`);
       console.log(`⏱️ Tempo: ${duration}ms`);
 
-      fs.mkdirSync("./ai/output", { recursive: true });
-
-      const outputPath = `./ai/output/output-${taskName}.md`;
-      fs.writeFileSync(outputPath, text);
-
-      console.log(`💾 Output salvo em: ${outputPath}`);
-
       console.log("\n📦 Preview output:");
       console.log(text.slice(0, 500));
 
-      if (shouldApply) {
-        const branch = `ai/${taskName}-${Date.now()}`;
-
-        console.log("\n🔄 Voltando para main...");
-        execSync("git checkout main", { stdio: "inherit" });
-
-        console.log("⬇️ Atualizando repo...");
-        execSync("git pull", { stdio: "inherit" });
-
-        console.log(`🌿 Criando branch: ${branch}`);
-        execSync(`git checkout -b ${branch}`, { stdio: "inherit" });
-
-        console.log("\n⚙️ Criando apenas arquivos novos...");
-        applyCreatesOnly(text);
-
-        console.log(
-          "\n📌 Alterações manuais, se existirem, ficaram no output:",
-        );
-        console.log(outputPath);
-
-        if (!hasGitChanges()) {
-          console.log("⚠️ Nenhuma mudança foi criada. PR não será aberto.");
-          return;
-        }
-
-        execSync("git add .", { stdio: "inherit" });
-
-        execSync(`git commit -m "AI: ${taskName}"`, {
-          stdio: "inherit",
-        });
-
-        execSync(`git push origin ${branch}`, {
-          stdio: "inherit",
-        });
-
-        console.log("🚀 Criando Pull Request...");
-
-        execSync(
-          `gh pr create --title "AI: ${taskName}" --body "Gerado automaticamente pela IA. Arquivos existentes devem ser revisados manualmente no output em ${outputPath}."`,
-          { stdio: "inherit" },
+      if (!shouldApply) {
+        const { createOutputPath, manualOutputPath } = saveSeparatedOutputs(
+          text,
+          taskName,
         );
 
-        console.log("✅ PR criado com sucesso!");
+        console.log(`\n💾 Arquivos novos salvos em: ${createOutputPath}`);
+        console.log(`📝 Alterações manuais salvas em: ${manualOutputPath}`);
+
+        return;
       }
+
+      const branch = `ai/${taskName}-${Date.now()}`;
+
+      console.log("\n🔄 Voltando para main...");
+      execSync("git checkout main", { stdio: "inherit" });
+
+      console.log("⬇️ Atualizando repo...");
+      execSync("git pull", { stdio: "inherit" });
+
+      console.log(`🌿 Criando branch: ${branch}`);
+      execSync(`git checkout -b ${branch}`, { stdio: "inherit" });
+
+      const { createOutputPath, manualOutputPath, createBlocksText } =
+        saveSeparatedOutputs(text, taskName);
+
+      console.log(`\n💾 Arquivos novos salvos em: ${createOutputPath}`);
+      console.log(`📝 Alterações manuais salvas em: ${manualOutputPath}`);
+
+      console.log("\n⚙️ Criando apenas arquivos novos...");
+      applyCreatesOnly(createBlocksText);
+
+      const prBody = `
+Gerado automaticamente pela IA.
+
+Arquivos novos criados automaticamente:
+${createOutputPath}
+
+Alterações manuais sugeridas:
+${manualOutputPath}
+
+Revise as alterações manuais antes de aplicar em arquivos existentes.
+`;
+
+      const prBodyPath = `./ai/output/pr-body-${taskName}.md`;
+      fs.writeFileSync(prBodyPath, prBody);
+
+      if (!hasGitChanges()) {
+        console.log("⚠️ Nenhuma mudança foi criada. PR não será aberto.");
+        return;
+      }
+
+      execSync("git add .", { stdio: "inherit" });
+
+      execSync(`git commit -m "AI: ${taskName}"`, {
+        stdio: "inherit",
+      });
+
+      execSync(`git push origin ${branch}`, {
+        stdio: "inherit",
+      });
+
+      console.log("🚀 Criando Pull Request...");
+
+      execSync(
+        `gh pr create --title "AI: ${taskName}" --body-file ${prBodyPath}`,
+        { stdio: "inherit" },
+      );
+
+      console.log("✅ PR criado com sucesso!");
 
       return;
     } catch (err) {
