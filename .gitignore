@@ -1,0 +1,6 @@
+node_modules
+.env
+ai/output*
+GiftBack/vendor
+GiftBack/node_modules
+Gift/node_modules
