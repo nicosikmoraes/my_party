@@ -1,3 +1,4 @@
-# Teste
+Crie:
 
-Crie uma função simples em JavaScript que soma dois números.
+- Um controller no backend chamado TestController
+- Uma tela no frontend chamada TestScreen

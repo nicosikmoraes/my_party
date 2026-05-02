@@ -55,3 +55,18 @@
 - quebrar funcionalidades existentes
 - alterar contratos de API sem necessidade
 - criar endpoints duplicados
+
+# OUTPUT FORMAT (OBRIGATÓRIO)
+
+Você DEVE responder apenas neste formato:
+
+# FILE: caminho/do/arquivo.ext
+
+conteúdo completo do arquivo
+
+# FILE: outro/caminho.ext
+
+conteúdo completo
+
+NÃO escreva explicações.
+NÃO escreva texto fora do formato.

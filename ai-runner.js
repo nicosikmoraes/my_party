@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
+import { execSync } from "child_process";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -12,9 +13,41 @@ if (!process.env.GEMINI_API_KEY) {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const taskName = process.argv[2];
+const shouldApply = process.argv.includes("--apply");
+
 if (!taskName) {
   console.log("⚠️ Informe a task: node ai-runner.js nome-da-task");
   process.exit(1);
+}
+
+const ALLOWED_PATHS = ["backend/", "frontend/"];
+
+function applyFiles(output) {
+  const blocks = output.split("# FILE:");
+
+  blocks.forEach((block) => {
+    if (!block.trim()) return;
+
+    const lines = block.split("\n");
+    const filePath = lines[0].trim();
+    const content = lines.slice(1).join("\n").trim();
+
+    if (!filePath) return;
+
+    // 🔒 segurança: só permite backend e frontend
+    if (!ALLOWED_PATHS.some((p) => filePath.startsWith(p))) {
+      console.log(`⚠️ Ignorado (fora do escopo): ${filePath}`);
+      return;
+    }
+
+    // cria pasta automaticamente
+    const dir = filePath.substring(0, filePath.lastIndexOf("/"));
+    fs.mkdirSync(dir, { recursive: true });
+
+    fs.writeFileSync(filePath, content);
+
+    console.log(`✅ Criado: ${filePath}`);
+  });
 }
 
 async function run() {
@@ -48,29 +81,55 @@ async function run() {
       const start = Date.now();
 
       const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
 
       const text = result.response.text();
-
       const duration = Date.now() - start;
 
       console.log(`\n🔥 Modelo usado: ${modelName}`);
       console.log(`⏱️ Tempo: ${duration}ms`);
 
-      console.log("\n===== RESULTADO =====\n");
-      console.log(text);
-
-      // 💾 salva output
+      // 💾 sempre salva output
       const outputPath = `./ai/output/output-${taskName}.md`;
       fs.writeFileSync(outputPath, text);
 
-      console.log(`\n💾 Salvo em: ${outputPath}`);
+      console.log(`💾 Output salvo em: ${outputPath}`);
+
+      if (shouldApply) {
+        const branch = `ai/${taskName}-${Date.now()}`;
+
+        console.log("\n🔄 Voltando para main...");
+        execSync("git checkout main", { stdio: "inherit" });
+
+        console.log("⬇️ Atualizando repo...");
+        execSync("git pull", { stdio: "inherit" });
+
+        console.log(`🌿 Criando branch: ${branch}`);
+        execSync(`git checkout -b ${branch}`, { stdio: "inherit" });
+
+        console.log("\n⚙️ Aplicando arquivos...");
+        applyFiles(text);
+
+        execSync("git add .", { stdio: "inherit" });
+
+        execSync(`git commit -m "AI: ${taskName}"`, {
+          stdio: "inherit",
+        });
+
+        execSync(`git push origin ${branch}`, {
+          stdio: "inherit",
+        });
+
+        console.log("🚀 Criando Pull Request...");
+
+        execSync(
+          `gh pr create --title "AI: ${taskName}" --body "Gerado automaticamente pela IA"`,
+          { stdio: "inherit" },
+        );
+
+        console.log("✅ PR criado com sucesso!");
+      }
 
       return;
     } catch (err) {
