@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Friendship;
+use Illuminate\Http\Request;
+use App\Models\User;
+
+class FriendshipController extends Controller
+{
+    public function send(Request $request)
+{
+    $request->validate([
+        'receiver_id' => 'required|exists:users,id',
+    ]);
+
+    $user = $request->user();
+    $receiverId = $request->receiver_id;
+
+    if ($user->id == $receiverId) {
+        return response()->json([
+            'message' => 'You cannot send a friend request to yourself'
+        ], 400);
+    }
+
+    $existing = Friendship::where(function ($query) use ($user, $receiverId) {
+        $query->where('sender_id', $user->id)
+              ->where('receiver_id', $receiverId);
+    })->orWhere(function ($query) use ($user, $receiverId) {
+        $query->where('sender_id', $receiverId)
+              ->where('receiver_id', $user->id);
+    })->first();
+
+    if ($existing && $existing->status !== 'rejected'){
+        return response()->json([
+            'message' => 'Friend request already exists or you are already friends'
+        ], 400);
+    }
+
+    $friendship = Friendship::create([
+        'sender_id' => $user->id,
+        'receiver_id' => $receiverId,
+        'status' => 'pending',
+    ]);
+
+    return response()->json([
+        'message' => 'Friend request sent',
+        'data' => $friendship
+    ], 201);
+}
+
+    public function received(Request $request)
+{
+    $user = $request->user();
+
+    $requests = Friendship::with('sender:id,name,email')
+        ->where('receiver_id', $user->id)
+        ->where('status', 'pending')
+        ->latest()
+        ->get();
+
+    return response()->json($requests);
+}
+
+    public function search(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string'
+    ]);
+
+    $user = $request->user();
+
+    $users = User::whereRaw('LOWER(name) = ?', [strtolower($request->name)])
+        ->where('id', '!=', $user->id)
+        ->get(['id', 'name']);
+
+    return response()->json($users);
+}
+}

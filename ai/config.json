@@ -1,0 +1,7 @@
+{
+  "defaultPaths": {
+    "backend": "./GiftBack",
+    "frontend": "./Gift"
+  },
+  "maxFiles": 8
+}
