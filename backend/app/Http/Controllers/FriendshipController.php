@@ -76,4 +76,27 @@ class FriendshipController extends Controller
 
     return response()->json($users);
 }
+
+public function accept(Request $request, Friendship $friendship)
+{
+$user = $request->user();
+
+    if ($friendship->receiver_id !== $user->id) {
+        return response()->json(['message' => 'You are not authorized to accept this friendship request.'], 403);
+    }
+
+    if ($friendship->status !== 'pending') {
+        return response()->json(['message' => 'This friendship request is not pending.'], 400);
+    }
+
+    $friendship->status = 'accepted';
+    $friendship->save();
+
+    return response()->json([
+        'message' => 'Friendship request accepted successfully.',
+        'friendship' => $friendship
+    ], 200);
+
+}
+
 }

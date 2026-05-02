@@ -16,8 +16,8 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|unique:users,name,' . $user->id,
-            'email' => 'required|email|unique:users',
+            'name' => 'required|string|unique:users,name',
+            'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
 
             'shirt_size' => 'nullable|in:PP,P,M,G,GG',
@@ -28,21 +28,25 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => strtolower($request->name),
-            'email' => $request->email,
-            'password' => Hash::make($request->password)
+            'email' => strtolower($request->email),
+            'password' => Hash::make($request->password),
+            'shirt_size' => $request->shirt_size,
+            'shoe_size' => $request->shoe_size,
+            'pants_size' => $request->pants_size,
+            'ring_size' => $request->ring_size,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'user' => $user,
-            'token' => $token
-        ]);
+            'token' => $token,
+        ], 201);
     }
 
     public function login(Request $request)
     {
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', strtolower($request->email))->first();
 
         if (!$user) {
             return response()->json([
