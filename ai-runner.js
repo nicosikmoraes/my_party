@@ -139,6 +139,15 @@ ${task}
 
 # LEMBRETE FINAL (CRÍTICO)
 Responda APENAS com # FILE:
+
+# REGRA CRÍTICA
+Se for alterar arquivo existente:
+- NÃO apagar conteúdo
+- NÃO sobrescrever tudo
+- APENAS adicionar/modificar
+
+Especialmente em:
+- routes/api.php
 `;
   } catch (err) {
     console.error("❌ Erro ao ler arquivos .md:");

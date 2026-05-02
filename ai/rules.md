@@ -132,3 +132,29 @@ Antes de responder, verifique:
 - Não há ``` no output?
 
 Se qualquer resposta for NÃO, corrija antes de enviar.
+
+# 🔄 ATUALIZAÇÃO DE ARQUIVOS (CRÍTICO)
+
+Se um arquivo já existe:
+
+- NÃO sobrescrever o arquivo inteiro
+- NÃO remover código existente
+- SEMPRE manter o conteúdo atual
+- APENAS adicionar ou modificar o necessário
+
+---
+
+## ❗ REGRAS PARA MODIFICAÇÃO
+
+- Preservar TODAS as rotas existentes
+- Preservar imports existentes
+- Preservar estrutura atual
+- Apenas adicionar novas linhas
+
+---
+
+## 🚫 PROIBIDO
+
+- Reescrever arquivo inteiro
+- Remover código existente
+- Apagar rotas já existentes
