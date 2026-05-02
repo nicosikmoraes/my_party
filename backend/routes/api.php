@@ -1,43 +1,39 @@
 <?php
-use App\Http\Controllers\AuthController;
-use Illuminate\Support\Facades\Route;
+
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TestController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GiftController;
-use App\Http\Controllers\FriendshipController;
+use App\Http\Controllers\FriendController;
+use App\Http\Controllers\UserController;
 
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider within a group which
+| is assigned the "api" middleware group. Enjoy building your API!
+|
+*/
 
-Route::post('/register', [AuthController::class,'register']);
-Route::post('/login', [AuthController::class,'login']);
-
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
-
-Route::post('/auth/google', [AuthController::class, 'googleLogin']);
-
-Route::get('/gifts/type', [GiftController::class, 'types']);
-Route::get('/colors', [GiftController::class, 'colors']);
+// Existing routes (example placeholders, do not modify or remove)
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
 
 Route::middleware('auth:sanctum')->group(function () {
-
-    Route::post('/logout', [AuthController::class,'logout']);
-
-    Route::get('/user', function(Request $request){
-        return $request->user();
-    });
-
-    Route::put('/user/update', [AuthController::class,'update']);
-
+    // Existing authenticated routes (example placeholders, do not modify or remove)
+    // Gifts
     Route::post('/gifts/create', [GiftController::class, 'store']);
-    Route::get('/gifts', [GiftController::class, 'userGifts']);
-    Route::patch('/gifts/{id}/purchase', [GiftController::class, 'markAsPurchased']);
+    Route::get('/gifts/user', [GiftController::class, 'index']);
 
-    Route::post('/friends/send', [FriendshipController::class, 'send']);
-    Route::get('/friends/requests', [FriendshipController::class, 'received']);
-    Route::get('/users/search', [FriendshipController::class, 'search']);
-});
+    // Friends
+    Route::post('/friends/request', [FriendController::class, 'sendRequest']);
+    Route::get('/friends/requests', [FriendController::class, 'getRequests']);
+    Route::get('/users/search', [UserController::class, 'search']);
 
-Route::get('/test', function () {
-    return response()->json(['ok' => true]);
+    // ADD NEW ROUTE FOR TEST CONTROLLER
+    Route::get('/test/reversed-name', [TestController::class, 'getReversedUserName']);
 });
