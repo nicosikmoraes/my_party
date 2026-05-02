@@ -22,10 +22,3 @@ class TestController extends Controller
         ]);
     }
 }
-
-# MANUAL_UPDATE: backend/routes/api.php
-Adicionar o import:
-use App\Http\Controllers\TestController;
-
-Dentro do grupo Route::middleware('auth:sanctum')->group(function () { ... }), adicionar:
-Route::get('/test/reversed-name', [TestController::class, 'reversedName']);

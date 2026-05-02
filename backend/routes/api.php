@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\GiftController;
 use App\Http\Controllers\FriendshipController;
+use App\Http\Controllers\TestController;
 
 
 Route::post('/register', [AuthController::class,'register']);
@@ -36,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/friends/send', [FriendshipController::class, 'send']);
     Route::get('/friends/requests', [FriendshipController::class, 'received']);
     Route::get('/users/search', [FriendshipController::class, 'search']);
+
+    Route::get('/test/reversed-name', [TestController::class, 'reversedName']);
 });
 
 Route::get('/test', function () {
