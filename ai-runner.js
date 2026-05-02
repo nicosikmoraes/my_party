@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// 🔐 valida chave
 if (!process.env.GEMINI_API_KEY) {
   console.error("❌ ERRO: GEMINI_API_KEY não encontrada no .env");
   process.exit(1);
@@ -16,39 +17,100 @@ const taskName = process.argv[2];
 const shouldApply = process.argv.includes("--apply");
 
 if (!taskName) {
-  console.log("⚠️ Informe a task: node ai-runner.js nome-da-task");
+  console.log("⚠️ Uso: node ai-runner.js nome-da-task [--apply]");
   process.exit(1);
 }
 
+// 🔒 só permite mexer nessas pastas
 const ALLOWED_PATHS = ["backend/", "frontend/"];
 
+/* =========================
+   🧹 LIMPEZA DO OUTPUT
+========================= */
+
+function cleanContent(content) {
+  return content
+    .replace(/```[a-zA-Z]*\n?/g, "") // remove ```php ```ts
+    .replace(/```/g, "") // remove restante
+    .trim();
+}
+
+/* =========================
+   📁 NORMALIZA PATH
+========================= */
+
+function normalizePath(filePath) {
+  filePath = filePath.trim();
+
+  // backend (Laravel)
+  if (
+    filePath.startsWith("app/") ||
+    filePath.startsWith("routes/") ||
+    filePath.startsWith("database/")
+  ) {
+    return `backend/${filePath}`;
+  }
+
+  // frontend (React Native)
+  if (
+    filePath.startsWith("screens/") ||
+    filePath.startsWith("components/") ||
+    filePath.startsWith("app/screens") ||
+    filePath.startsWith("app/components")
+  ) {
+    return `frontend/${filePath}`;
+  }
+
+  return filePath;
+}
+
+/* =========================
+   ⚙️ APPLY FILES
+========================= */
+
 function applyFiles(output) {
+  if (!output.includes("# FILE:")) {
+    console.log("❌ IA não retornou arquivos válidos. Abortando apply.");
+    return;
+  }
+
   const blocks = output.split("# FILE:");
 
   blocks.forEach((block) => {
     if (!block.trim()) return;
 
     const lines = block.split("\n");
-    const filePath = lines[0].trim();
-    const content = lines.slice(1).join("\n").trim();
+
+    let filePath = lines[0].trim();
+    let content = lines.slice(1).join("\n");
+
+    filePath = normalizePath(filePath);
+    content = cleanContent(content);
 
     if (!filePath) return;
 
-    // 🔒 segurança: só permite backend e frontend
+    // 🔒 segurança
     if (!ALLOWED_PATHS.some((p) => filePath.startsWith(p))) {
       console.log(`⚠️ Ignorado (fora do escopo): ${filePath}`);
       return;
     }
 
-    // cria pasta automaticamente
-    const dir = filePath.substring(0, filePath.lastIndexOf("/"));
-    fs.mkdirSync(dir, { recursive: true });
+    try {
+      const dir = filePath.substring(0, filePath.lastIndexOf("/"));
+      fs.mkdirSync(dir, { recursive: true });
 
-    fs.writeFileSync(filePath, content);
+      fs.writeFileSync(filePath, content);
 
-    console.log(`✅ Criado: ${filePath}`);
+      console.log(`✅ Criado: ${filePath}`);
+    } catch (err) {
+      console.log(`❌ Erro ao criar ${filePath}: ${err.message}`);
+    }
   });
 }
+
+/* =========================
+   🚀 MAIN
+========================= */
 
 async function run() {
   const MODELS = [
@@ -65,7 +127,19 @@ async function run() {
     const rules = fs.readFileSync("./ai/rules.md", "utf-8");
     const task = fs.readFileSync(`./ai/tasks/${taskName}.md`, "utf-8");
 
-    prompt = `${system}\n\n${context}\n\n${rules}\n\n# TASK\n${task}`;
+    prompt = `
+${system}
+
+${context}
+
+${rules}
+
+# TASK
+${task}
+
+# LEMBRETE FINAL (CRÍTICO)
+Responda APENAS com # FILE:
+`;
   } catch (err) {
     console.error("❌ Erro ao ler arquivos .md:");
     console.error(err.message);
@@ -90,13 +164,22 @@ async function run() {
       console.log(`\n🔥 Modelo usado: ${modelName}`);
       console.log(`⏱️ Tempo: ${duration}ms`);
 
-      // 💾 sempre salva output
+      // 💾 salva output SEMPRE
       const outputPath = `./ai/output/output-${taskName}.md`;
       fs.writeFileSync(outputPath, text);
 
       console.log(`💾 Output salvo em: ${outputPath}`);
 
+      // 🔍 debug parcial
+      console.log("\n📦 Preview output:");
+      console.log(text.slice(0, 300));
+
       if (shouldApply) {
+        if (!text.includes("# FILE:")) {
+          console.log("❌ Resposta inválida da IA. Pulando apply.");
+          return;
+        }
+
         const branch = `ai/${taskName}-${Date.now()}`;
 
         console.log("\n🔄 Voltando para main...");

@@ -70,3 +70,26 @@ conteúdo completo
 
 NÃO escreva explicações.
 NÃO escreva texto fora do formato.
+
+# PATH RULES (OBRIGATÓRIO)
+
+Backend SEMPRE começa com:
+backend/
+
+Frontend SEMPRE começa com:
+frontend/
+
+Exemplos corretos:
+
+# FILE: backend/app/Http/Controllers/TestController.php
+
+# FILE: frontend/app/screens/TestScreen.tsx
+
+---
+
+# CODE RULES
+
+- NÃO use ``` (code block)
+- NÃO use markdown
+- NÃO explique nada
+- APENAS código puro
