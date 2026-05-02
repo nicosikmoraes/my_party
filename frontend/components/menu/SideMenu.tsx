@@ -13,6 +13,7 @@ import {
 import TextComponent from "../ui/Text";
 import TitleComponent from "../ui/Title";
 import UserSearch from "./UserSearch";
+import FriendRequestsList from "../friends/FriendRequestsList";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -92,7 +93,14 @@ export default function SideMenu({ visible, onClose }: Props) {
           </View>
 
           <View style={styles.content}>
-            <UserSearch />
+            <View style={styles.section}>
+              <TitleComponent message="Search" fontSize={18} />
+              <UserSearch />
+            </View>
+
+            <View style={styles.section}>
+              <FriendRequestsList />
+            </View>
 
             <TextComponent
               message="No friends yet"
@@ -133,5 +141,9 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
+  },
+  section: {
+    paddingVertical: 5,
+    width: "100%",
   },
 });

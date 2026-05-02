@@ -1,17 +1,22 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
-import TextComponent from '@/components/ui/Text';
-import Loading from '@/components/ui/Loading';
-import FriendRequestItem from './FriendRequestItem';
-import { FriendshipRequest } from '@/types/friendship';
-import { getFriendRequests, acceptFriendRequest } from '@/services/friendshipService';
-import useToast from '@/hooks/useToast';
+import React, { useEffect, useState, useCallback } from "react";
+import { View, FlatList, StyleSheet } from "react-native";
+import TextComponent from "@/components/ui/Text";
+import Loading from "@/components/ui/Loading";
+import FriendRequestItem from "./FriendRequestItem";
+import { FriendshipRequest } from "@/types/friendship";
+import {
+  getFriendRequests,
+  acceptFriendRequest,
+} from "@/services/friendshipService";
+import { showToast } from "@/utils/toast";
+import TitleComponent from "../ui/Title";
 
 const FriendRequestsList: React.FC = () => {
-  const [requests, setRequests] = useState<FriendshipRequest[]>([]);
+  const [requests, setRequests] = useState<FriendshipRequest[] | any>([]);
   const [loading, setLoading] = useState(true);
-  const [acceptingRequestId, setAcceptingRequestId] = useState<number | null>(null);
-  const showToast = useToast();
+  const [acceptingRequestId, setAcceptingRequestId] = useState<number | null>(
+    null,
+  );
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -19,7 +24,10 @@ const FriendRequestsList: React.FC = () => {
       const response = await getFriendRequests();
       setRequests(response.data);
     } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Erro ao carregar pedidos de amizade.');
+      showToast(
+        "error",
+        error.response?.data?.message || "Erro ao carregar pedidos de amizade.",
+      );
     } finally {
       setLoading(false);
     }
@@ -33,10 +41,13 @@ const FriendRequestsList: React.FC = () => {
     setAcceptingRequestId(friendshipId);
     try {
       await acceptFriendRequest(friendshipId);
-      showToast('success', 'Pedido de amizade aceito com sucesso!');
+      showToast("Invite accepeted with success!", "success");
       fetchRequests(); // Refresh the list
     } catch (error: any) {
-      showToast('error', error.response?.data?.message || 'Erro ao aceitar pedido de amizade.');
+      showToast(
+        "error",
+        error.response?.data?.message || "Error accepting the invite.",
+      );
     } finally {
       setAcceptingRequestId(null);
     }
@@ -49,7 +60,15 @@ const FriendRequestsList: React.FC = () => {
   return (
     <View style={styles.container}>
       {requests.length === 0 ? (
-        <TextComponent message="Nenhum pedido de amizade recebido." opacity={0.7} />
+        <></>
+      ) : (
+        <View style={styles.sectionTitle}>
+          <TitleComponent message="Invites" fontSize={18} />
+        </View>
+      )}
+
+      {requests.length === 0 ? (
+        <></>
       ) : (
         <FlatList
           data={requests}
@@ -70,8 +89,10 @@ const FriendRequestsList: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
     paddingVertical: 10,
+  },
+  sectionTitle: {
+    marginBottom: 10,
   },
 });
 
