@@ -40,13 +40,13 @@ export function AuthProvider({ children }: any) {
   }
 
   async function signOut() {
+    router.replace("/(app)/login");
+
     await removeToken();
 
     delete api.defaults.headers.common["Authorization"];
 
     setUser(null);
-
-    router.replace("/(app)/login");
   }
 
   async function loadUser() {

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use App\Enums\Color;
 use Illuminate\Validation\Rule;
 
@@ -113,20 +115,37 @@ class AuthController extends Controller
             : response()->json(['message' => 'Token inválido ou expirado'], 400);
     }
 
+
+    //LOGIN VIA GOOGLE
         public function googleLogin(Request $request)
     {
+        $request->validate([
+            'token' => 'required|string',
+        ]);
+
         try {
             $googleUser = Socialite::driver('google')
                 ->stateless()
                 ->userFromToken($request->token);
 
-            $user = User::where('email', $googleUser->getEmail())->first();
+            $email = strtolower($googleUser->getEmail());
+
+            if (!$email) {
+                return response()->json([
+                    'message' => 'Google account email not found'
+                ], 401);
+            }
+
+            $user = User::where('email', $email)->first();
 
             if (!$user) {
+                $baseName = $googleUser->getName() ?: explode('@', $email)[0];
+                $name = $this->generateUniqueUsername($baseName);
+
                 $user = User::create([
-                    'name' => $googleUser->getName(),
-                    'email' => $googleUser->getEmail(),
-                    'password' => bcrypt(uniqid()), // senha fake
+                    'name' => $name,
+                    'email' => $email,
+                    'password' => Hash::make(Str::random(32)),
                 ]);
             }
 
@@ -134,14 +153,38 @@ class AuthController extends Controller
 
             return response()->json([
                 'user' => $user,
-                'token' => $token
+                'token' => $token,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Google login error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
-        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Erro ao autenticar com Google'
+                'message' => 'Erro ao autenticar com Google',
+                'error' => $e->getMessage(),
             ], 401);
         }
+    }
+
+    private function generateUniqueUsername(string $name): string
+    {
+        $base = Str::slug(strtolower($name), '');
+
+        if (!$base) {
+            $base = 'user';
+        }
+
+        $username = $base;
+        $counter = 1;
+
+        while (User::where('name', $username)->exists()) {
+            $username = $base . $counter;
+            $counter++;
+        }
+
+        return $username;
     }
 
         public function update(Request $request)
