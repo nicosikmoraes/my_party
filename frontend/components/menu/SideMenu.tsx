@@ -14,6 +14,7 @@ import TextComponent from "../ui/Text";
 import TitleComponent from "../ui/Title";
 import UserSearch from "./UserSearch";
 import FriendRequestsList from "../friends/FriendRequestsList";
+import { FriendsList } from "../friends/FriendsList";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -102,12 +103,11 @@ export default function SideMenu({ visible, onClose }: Props) {
               <FriendRequestsList />
             </View>
 
-            <TextComponent
-              message="No friends yet"
-              fontWeight={300}
-              fontSize={14}
-              opacity={0.6}
-            />
+            <View>
+              <TitleComponent message="Your Friends" fontSize={18} />
+
+              <FriendsList />
+            </View>
           </View>
         </Animated.View>
       </View>

@@ -99,4 +99,37 @@ $user = $request->user();
 
 }
 
+public function friends(Request $request)
+{
+    $user = $request->user();
+
+    $friendships = Friendship::where('status', 'accepted')
+        ->where(function ($query) use ($user) {
+            $query->where('sender_id', $user->id)
+                ->orWhere('receiver_id', $user->id);
+        })
+        ->with(['sender:id,name,email', 'receiver:id,name,email'])
+        ->get();
+
+    $friends = collect();
+    foreach ($friendships as $friendship) {
+        if ($friendship->sender_id === $user->id) {
+            $friends->push($friendship->receiver);
+        } else {
+            $friends->push($friendship->sender);
+        }
+    }
+
+    $friends = $friends->unique('id')->values()->map(function ($friend) {
+        return [
+            'id' => $friend->id,
+            'name' => $friend->name,
+            'email' => $friend->email,
+        ];
+    });
+
+    return response()->json(['data' => $friends]);
+}
+
+
 }
