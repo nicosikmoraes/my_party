@@ -3,6 +3,8 @@ import { View, StyleSheet } from "react-native";
 import { User } from "@/types/user";
 import TextComponent from "@/components/ui/Text";
 import PressableComponent from "@/components/ui/Pressable";
+import IconButton from "../ui/PressableIcon";
+import { Ionicons } from "@expo/vector-icons";
 
 interface FriendSearchResultItemProps {
   user: User;
@@ -18,15 +20,12 @@ const FriendSearchResultItem: React.FC<FriendSearchResultItemProps> = ({
   return (
     <View style={styles.container}>
       <TextComponent message={user.name} fontSize={16} />
-      <PressableComponent
-        message="Add"
+      <IconButton
         onPress={() => onAdd(user.id)}
-        loading={loading}
-        width={70}
-        height={35}
-        padding={0}
-        borderRadius={6}
+        icon={<Ionicons name="add-outline" size={30} color={"#1a1a1a"} />}
         backgroundColor="#E65C00"
+        size={36}
+        borderRadius={6}
       />
     </View>
   );

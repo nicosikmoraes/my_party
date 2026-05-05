@@ -3,6 +3,8 @@ import { View, StyleSheet } from "react-native";
 import TextComponent from "@/components/ui/Text";
 import PressableComponent from "@/components/ui/Pressable";
 import { FriendshipRequest } from "@/types/friendship";
+import IconButton from "../ui/PressableIcon";
+import { Ionicons } from "@expo/vector-icons";
 
 interface FriendRequestItemProps {
   request: FriendshipRequest;
@@ -18,15 +20,12 @@ const FriendRequestItem: React.FC<FriendRequestItemProps> = ({
   return (
     <View style={styles.container}>
       <TextComponent message={request.sender.name} fontSize={16} />
-      <PressableComponent
-        message="Accept"
+      <IconButton
+        icon={<Ionicons name="checkmark-outline" size={30} color={"#1a1a1a"} />}
         onPress={() => onAccept(request.id)}
-        loading={loading}
-        width={75}
-        height={35}
-        borderRadius={5}
-        padding={0}
         backgroundColor="#E65C00"
+        size={36}
+        borderRadius={6}
       />
     </View>
   );

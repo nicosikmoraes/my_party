@@ -1,28 +1,40 @@
-import React from "react";
-import { View, StyleSheet } from "react-native";
-import { Friend } from "../../types/friend";
-import TextComponent from "../ui/Text";
+import { Pressable, View, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import TextComponent from "../../components/ui/Text";
+import { Friend } from "../../types/friend"; // Certifique-se que o caminho está correto
 
 type FriendItemProps = {
   friend: Friend;
 };
 
-export const FriendItem: React.FC<FriendItemProps> = ({ friend }) => {
+export default function FriendItem({ friend }: FriendItemProps) {
+  const iconBgColor = friend.preferred_color;
+
   return (
-    <View style={styles.container}>
-      <TextComponent message={friend.name} fontSize={16} />
-      {friend.email && (
-        <TextComponent message={friend.email} fontSize={14} opacity={0.7} />
-      )}
-    </View>
+    <Pressable style={styles.container}>
+      <View style={[styles.iconContainer, { backgroundColor: iconBgColor }]}>
+        <Ionicons name="person" size={24} color="#1A1A1A" />
+      </View>
+      <TextComponent message={friend.name} fontSize={18} fontWeight={900} />
+    </Pressable>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#1A1A1A",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#333",
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 8,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
 });

@@ -108,10 +108,14 @@ public function friends(Request $request)
             $query->where('sender_id', $user->id)
                 ->orWhere('receiver_id', $user->id);
         })
-        ->with(['sender:id,name,email', 'receiver:id,name,email'])
+        ->with([
+            'sender:id,name,email,preferred_color',
+            'receiver:id,name,email,preferred_color',
+        ])
         ->get();
 
     $friends = collect();
+
     foreach ($friendships as $friendship) {
         if ($friendship->sender_id === $user->id) {
             $friends->push($friendship->receiver);
@@ -125,6 +129,7 @@ public function friends(Request $request)
             'id' => $friend->id,
             'name' => $friend->name,
             'email' => $friend->email,
+            'preferred_color' => $friend->preferred_color ?? '#E65C00',
         ];
     });
 
