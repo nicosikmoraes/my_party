@@ -22,9 +22,10 @@ const FriendRequestItem: React.FC<FriendRequestItemProps> = ({
         message="Accept"
         onPress={() => onAccept(request.id)}
         loading={loading}
-        width={100}
+        width={75}
         height={35}
-        borderRadius={8}
+        borderRadius={5}
+        padding={0}
         backgroundColor="#E65C00"
       />
     </View>

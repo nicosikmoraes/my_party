@@ -1,7 +1,7 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { TextComponent } from "../ui/Text";
-import { Friend } from "../../types/friendship";
+import { Friend } from "../../types/friend";
+import TextComponent from "../ui/Text";
 
 type FriendItemProps = {
   friend: Friend;
