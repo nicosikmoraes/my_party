@@ -23,6 +23,7 @@ type Props = {
   error?: string;
   width?: any;
   label?: string;
+  marginBottom?: number;
 };
 
 export default function SelectModal({
@@ -33,6 +34,7 @@ export default function SelectModal({
   error,
   width = "100%",
   label = "",
+  marginBottom = 0,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -44,7 +46,7 @@ export default function SelectModal({
   );
 
   return (
-    <View style={{ width }}>
+    <View style={[{ width }, { marginBottom: marginBottom }]}>
       {label ? (
         <View style={{ marginBottom: 5 }}>
           <TextComponent message={label} textAlign="left" />
@@ -119,7 +121,7 @@ const styles = StyleSheet.create({
   error: {
     color: "red",
     marginTop: 4,
-    fontSize: 12,
+    fontSize: 14,
   },
 
   overlay: {

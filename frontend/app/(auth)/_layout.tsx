@@ -11,7 +11,7 @@ export default function AppLayout() {
 
   if (!user) {
     console.log("User not authenticate");
-    return <Redirect href="/login" />;
+    return <Redirect href="/(app)/login" />;
   }
 
   return (
