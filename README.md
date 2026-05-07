@@ -16,7 +16,7 @@ Além disso, o sistema permite a criação de eventos onde os participantes pode
 - [x] Amizades
 - [x] Informar preferências pessoais (roupa, calçado, estilo, etc)
 - [x] Lista de desejos pessoal
-- [ ] Criar eventos
+- [x] Criar eventos
 - [ ] Convidar participantes para eventos
 - [ ] Adicionar sugestões de presentes
 - [ ] Visualizar sugestões de presentes
