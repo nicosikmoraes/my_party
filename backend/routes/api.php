@@ -47,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{event}', [EventController::class, 'update']);
         Route::delete('/{event}', [EventController::class, 'destroy']);
 
+        Route::post('/{event}/invite', [EventParticipantController::class, 'invite']);
         Route::post('/{event}/accept', [EventParticipantController::class, 'accept']);
         Route::post('/{event}/decline', [EventParticipantController::class, 'decline']);
     });

@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Alert } from "react-native";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { eventService } from "../../../services/eventService";
 import { Event } from "../../../types/event";
-import { showToast } from "../../../utils/toast"; // Assuming toast utility exists
+import { showToast } from "../../../utils/toast";
 import Loading from "@/components/ui/Loading";
 import BlankTemplate from "@/components/template/Blank";
 import TextComponent from "@/components/ui/Text";
@@ -20,7 +20,7 @@ const EventDetailScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
-  const [isCreator, setIsCreator] = useState(false); // This would need to be checked against authenticated user ID
+  const [isCreator, setIsCreator] = useState(false);
 
   const fetchEventDetails = async () => {
     if (!eventId) return;
@@ -28,11 +28,11 @@ const EventDetailScreen: React.FC = () => {
     try {
       const fetchedEvent = await eventService.getEventById(eventId);
       setEvent(fetchedEvent);
-      setIsCreator(fetchedEvent.creator.id === 1);
+      setIsCreator(fetchedEvent.created_by_user_id === user?.id);
     } catch (error: any) {
       console.error("Failed to fetch event details:", error);
       const errorMessage =
-        error.response?.data?.message || "Erro ao carregar detalhes do evento.";
+        error.response?.data?.message || "Error loading event details.";
       showToast(errorMessage, "danger");
       router.back();
     } finally {
@@ -43,28 +43,28 @@ const EventDetailScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       fetchEventDetails();
-    }, [eventId]),
+    }, [eventId, user?.id]),
   );
 
   const handleDelete = () => {
     Alert.alert(
-      "Confirmar Exclusão",
-      "Tem certeza que deseja excluir este evento? Esta ação é irreversível.",
+      "Confirm deletion",
+      "Are you sure you want to delete this event? This action cannot be undone.",
       [
-        { text: "Cancelar", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: "Excluir",
+          text: "Delete",
           style: "destructive",
           onPress: async () => {
             setActionLoading(true);
             try {
               await eventService.deleteEvent(eventId!);
-              showToast("Evento excluído com sucesso!", "success");
+              showToast("Event deleted successfully", "success");
               router.back();
             } catch (error: any) {
               console.error("Failed to delete event:", error);
               const errorMessage =
-                error.response?.data?.message || "Erro ao excluir evento.";
+                error.response?.data?.message || "Error deleting event.";
               showToast(errorMessage, "danger");
             } finally {
               setActionLoading(false);
@@ -80,12 +80,12 @@ const EventDetailScreen: React.FC = () => {
     setActionLoading(true);
     try {
       await eventService.acceptEvent(eventId!);
-      showToast("Convite aceito!", "danger");
+      showToast("Invite accepted", "success");
       fetchEventDetails();
     } catch (error: any) {
       console.error("Failed to accept invite:", error);
       const errorMessage =
-        error.response?.data?.message || "Erro ao aceitar convite.";
+        error.response?.data?.message || "Error accepting invite.";
       showToast(errorMessage, "danger");
     } finally {
       setActionLoading(false);
@@ -96,12 +96,12 @@ const EventDetailScreen: React.FC = () => {
     setActionLoading(true);
     try {
       await eventService.declineEvent(eventId!);
-      showToast("Convite recusado!", "success");
-      router.back(); // Or refresh and show no longer participating
+      showToast("Invite declined", "success");
+      router.back();
     } catch (error: any) {
       console.error("Failed to decline invite:", error);
       const errorMessage =
-        error.response?.data?.message || "Erro ao recusar convite.";
+        error.response?.data?.message || "Error declining invite.";
       showToast(errorMessage, "danger");
     } finally {
       setActionLoading(false);
@@ -115,17 +115,25 @@ const EventDetailScreen: React.FC = () => {
   if (!event) {
     return (
       <BlankTemplate>
-        <TextComponent message="Evento não encontrado." />
+        <TextComponent message="Event not found." />
       </BlankTemplate>
     );
   }
 
-  const formattedDate = new Date(event.date).toLocaleString("pt-BR", {
+  const formattedDate = new Date(event.date).toLocaleString("en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+  const confirmedParticipants = event.users.filter((eventUser) => {
+    const participant = event.participants?.find(
+      (eventParticipant) =>
+        eventParticipant.user_id === eventUser.id && eventParticipant.is_accepted,
+    );
+
+    return Boolean(participant || eventUser.pivot?.is_accepted);
   });
 
   return (
@@ -136,7 +144,7 @@ const EventDetailScreen: React.FC = () => {
           <TitleComponent message={event.title} />
           {isCreator && (
             <View style={styles.actionButtons}>
-              <TextComponent message="Edir" />
+              <TextComponent message="Edit" />
               <IconButton
                 icon={
                   <Ionicons name="pencil-outline" size={24} color="#E65C00" />
@@ -152,16 +160,16 @@ const EventDetailScreen: React.FC = () => {
         </View>
 
         <View style={styles.detailRow}>
-          <TextComponent message="Tipo:" fontWeight="bold" textAlign="left" />
+          <TextComponent message="Type:" fontWeight="bold" textAlign="left" />
           <TextComponent message={event.type} textAlign="left" />
         </View>
         <View style={styles.detailRow}>
-          <TextComponent message="Data:" fontWeight="bold" textAlign="left" />
+          <TextComponent message="Date:" fontWeight="bold" textAlign="left" />
           <TextComponent message={formattedDate} textAlign="left" />
         </View>
         <View style={styles.detailRow}>
           <TextComponent
-            message="Endereço:"
+            message="Address:"
             fontWeight="bold"
             textAlign="left"
           />
@@ -170,7 +178,7 @@ const EventDetailScreen: React.FC = () => {
         {event.description && (
           <View style={styles.detailRow}>
             <TextComponent
-              message="Descrição:"
+              message="Description:"
               fontWeight="bold"
               textAlign="left"
             />
@@ -179,7 +187,7 @@ const EventDetailScreen: React.FC = () => {
         )}
         <View style={styles.detailRow}>
           <TextComponent
-            message="Criador:"
+            message="Creator:"
             fontWeight="bold"
             textAlign="left"
           />
@@ -187,29 +195,21 @@ const EventDetailScreen: React.FC = () => {
         </View>
 
         <TextComponent
-          message="Participantes Confirmados:"
+          message="Confirmed participants:"
           fontWeight="bold"
           textAlign="left"
         />
-        {event.users.filter((u) =>
-          event.participants.find((p) => p.user_id === u.id && p.is_accepted),
-        ).length > 0 ? (
-          event.users
-            .filter((u) =>
-              event.participants.find(
-                (p) => p.user_id === u.id && p.is_accepted,
-              ),
-            )
-            .map((user) => (
-              <TextComponent
-                key={user.id}
-                message={`- ${user.name}`}
-                textAlign="left"
-              />
-            ))
+        {confirmedParticipants.length > 0 ? (
+          confirmedParticipants.map((user) => (
+            <TextComponent
+              key={user.id}
+              message={`- ${user.name}`}
+              textAlign="left"
+            />
+          ))
         ) : (
           <TextComponent
-            message="Nenhum participante confirmado ainda."
+            message="No confirmed participants yet."
             textAlign="left"
           />
         )}
@@ -219,7 +219,7 @@ const EventDetailScreen: React.FC = () => {
           event.users?.some((participant) => participant.id === user.id) && (
             <View style={styles.inviteActions}>
               <PressableComponent
-                message="Aceitar Convite"
+                message="Accept Invite"
                 onPress={handleAcceptInvite}
                 backgroundColor="#4CAF50"
                 marginTop={20}
@@ -227,7 +227,7 @@ const EventDetailScreen: React.FC = () => {
               />
 
               <PressableComponent
-                message="Recusar Convite"
+                message="Decline Invite"
                 onPress={handleDeclineInvite}
                 backgroundColor="#E53935"
                 marginTop={20}
@@ -235,6 +235,16 @@ const EventDetailScreen: React.FC = () => {
               />
             </View>
           )}
+
+        {isCreator && (
+          <PressableComponent
+            message="Invite users"
+            onPress={() => router.push(`/events/${event.id}/invite`)}
+            marginTop={20}
+            width="100%"
+            borderRadius={10}
+          />
+        )}
       </ScrollView>
     </BlankTemplate>
   );
