@@ -15,14 +15,28 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const taskName = process.argv[2];
 const shouldApply = process.argv.includes("--apply");
 
+const gitArg = process.argv.find((arg) => arg.startsWith("--git="));
+const gitMode = gitArg ? gitArg.replace("--git=", "") : "pr";
+
+const VALID_GIT_MODES = ["none", "commit", "pr"];
+
+if (!taskName) {
+  console.log(
+    "⚠️ Uso: node ai-runner.js nome-da-task [--apply] [--git=none|commit|pr]",
+  );
+  process.exit(1);
+}
+
+if (!VALID_GIT_MODES.includes(gitMode)) {
+  console.error(
+    "❌ Modo de git inválido. Use: --git=none, --git=commit ou --git=pr",
+  );
+  process.exit(1);
+}
+
 const frontendComponents = fs.existsSync("./ai/frontend-components.md")
   ? fs.readFileSync("./ai/frontend-components.md", "utf-8")
   : "";
-
-if (!taskName) {
-  console.log("⚠️ Uso: node ai-runner.js nome-da-task [--apply]");
-  process.exit(1);
-}
 
 const ALLOWED_PATHS = ["backend/", "frontend/"];
 
@@ -51,6 +65,7 @@ function normalizePath(filePath) {
     filePath.startsWith("hooks/") ||
     filePath.startsWith("utils/") ||
     filePath.startsWith("templates/") ||
+    filePath.startsWith("types/") ||
     filePath.startsWith("app/")
   ) {
     return `frontend/${filePath}`;
@@ -93,11 +108,12 @@ function extractBlocks(output, marker) {
 function saveSeparatedOutputs(output, taskName) {
   fs.mkdirSync("./ai/output", { recursive: true });
 
-  const createBlocks = extractBlocks(output, "# CREATE:");
-  const manualUpdateBlocks = extractBlocks(output, "# MANUAL_UPDATE:");
-
+  const rawOutputPath = `./ai/output/raw-${taskName}.md`;
   const createOutputPath = `./ai/output/creates-${taskName}.md`;
   const manualOutputPath = `./ai/output/manual-updates-${taskName}.md`;
+
+  const createBlocks = extractBlocks(output, "# CREATE:");
+  const manualUpdateBlocks = extractBlocks(output, "# MANUAL_UPDATE:");
 
   const createBlocksText =
     createBlocks.length > 0
@@ -109,10 +125,12 @@ function saveSeparatedOutputs(output, taskName) {
       ? manualUpdateBlocks.join("\n\n")
       : "Nenhuma alteração manual foi sugerida.";
 
+  fs.writeFileSync(rawOutputPath, output);
   fs.writeFileSync(createOutputPath, createBlocksText);
   fs.writeFileSync(manualOutputPath, manualBlocksText);
 
   return {
+    rawOutputPath,
     createOutputPath,
     manualOutputPath,
     createBlocksText,
@@ -164,27 +182,200 @@ function applyCreatesOnly(output) {
   }
 }
 
-function hasGitChanges() {
-  const status = execSync("git status --porcelain").toString().trim();
-  return status.length > 0;
+function runCommand(command) {
+  execSync(command, { stdio: "inherit" });
 }
 
-async function run() {
-  const MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.0-flash-lite",
-  ];
+function readCommand(command) {
+  return execSync(command).toString().trim();
+}
 
-  let prompt;
+function hasGitChanges() {
+  return readCommand("git status --porcelain").length > 0;
+}
 
+function getGitDiff() {
   try {
-    const system = fs.readFileSync("./ai/system.md", "utf-8");
-    const context = fs.readFileSync("./ai/context.md", "utf-8");
-    const rules = fs.readFileSync("./ai/rules.md", "utf-8");
-    const task = fs.readFileSync(`./ai/tasks/${taskName}.md`, "utf-8");
+    return execSync("git diff -- . ':!backend/giftdb'", {
+      encoding: "utf-8",
+      maxBuffer: 1024 * 1024 * 20,
+    });
+  } catch {
+    return "";
+  }
+}
 
-    prompt = `
+function ensureCleanWorkingTreeForGitFlow() {
+  const status = readCommand("git status --porcelain");
+
+  if (!status) return;
+
+  console.log("❌ Existem mudanças locais antes de criar branch:");
+  console.log(status);
+  console.log("\nResolva antes de rodar com --git=commit ou --git=pr.");
+  console.log(
+    "Dica: se for só o banco local, coloque backend/giftdb no .gitignore e rode git rm --cached backend/giftdb.",
+  );
+  process.exit(1);
+}
+
+function prepareGitFlow() {
+  if (gitMode === "none") {
+    console.log(
+      "🧪 Modo git=none: aplicando na branch atual, sem commit e sem PR.",
+    );
+    return null;
+  }
+
+  ensureCleanWorkingTreeForGitFlow();
+
+  const branch = `ai/${taskName}-${Date.now()}`;
+
+  console.log("\n🔄 Voltando para main...");
+  runCommand("git checkout main");
+
+  console.log("⬇️ Atualizando repo...");
+  runCommand("git pull");
+
+  console.log(`🌿 Criando branch: ${branch}`);
+  runCommand(`git checkout -b ${branch}`);
+
+  return branch;
+}
+
+function runCodex(prompt, outputPath) {
+  fs.mkdirSync("./ai/output", { recursive: true });
+
+  const tempPromptPath = `./ai/output/codex-prompt-${taskName}-${Date.now()}.md`;
+  fs.writeFileSync(tempPromptPath, prompt);
+
+  const command = `codex exec -C . -s workspace-write -o ${outputPath} - < ${tempPromptPath}`;
+
+  console.log(`\n🤖 Rodando Codex...`);
+  runCommand(command);
+
+  fs.rmSync(tempPromptPath, { force: true });
+}
+
+function runCodexManualUpdates({ manualOutputPath, taskPath }) {
+  const manualUpdates = fs.readFileSync(manualOutputPath, "utf-8");
+
+  if (
+    !manualUpdates.trim() ||
+    manualUpdates.includes("Nenhuma alteração manual foi sugerida.")
+  ) {
+    console.log("⚠️ Nenhuma alteração manual para o Codex aplicar.");
+    return;
+  }
+
+  const task = fs.readFileSync(taskPath, "utf-8");
+  const rules = fs.readFileSync("./ai/rules.md", "utf-8");
+
+  const prompt = `
+Você é o Codex atuando dentro deste repositório.
+
+Sua responsabilidade:
+- Aplicar alterações em arquivos existentes com segurança.
+- NÃO criar branch.
+- NÃO fazer commit.
+- NÃO fazer push.
+- NÃO abrir Pull Request.
+- NÃO reescrever arquivos inteiros sem necessidade.
+- Preservar código existente.
+- Alterar apenas o necessário para cumprir a task.
+- Respeitar a arquitetura do projeto.
+- Reutilizar componentes e services existentes.
+- Não mexer em backend/giftdb.
+- Não alterar arquivos fora de backend/ e frontend/, exceto se for indispensável para a task.
+
+# TASK ORIGINAL
+
+${task}
+
+# REGRAS DO PROJETO
+
+${rules}
+
+# ALTERAÇÕES MANUAIS GERADAS PELO GEMINI
+
+${manualUpdates}
+
+Aplique essas alterações diretamente nos arquivos existentes.
+Depois responda de forma curta listando o que foi alterado.
+`;
+
+  const outputPath = `./ai/output/codex-apply-${taskName}.md`;
+  runCodex(prompt, outputPath);
+
+  console.log(`📝 Resultado do Codex salvo em: ${outputPath}`);
+}
+
+function runCodexReview({ taskPath }) {
+  const task = fs.readFileSync(taskPath, "utf-8");
+  const diff = getGitDiff();
+
+  if (!diff.trim()) {
+    console.log("⚠️ Sem diff para revisar com Codex.");
+    return;
+  }
+
+  const prompt = `
+Você é o Codex revisando as alterações feitas neste repositório.
+
+Sua responsabilidade:
+- Revisar o diff atual.
+- Corrigir bugs óbvios de import, path, tipo, JSX, sintaxe, rota e integração.
+- Não mudar o escopo da task.
+- Não reescrever arquivos inteiros sem necessidade.
+- Não fazer commit.
+- Não fazer push.
+- Não abrir Pull Request.
+- Não mexer em backend/giftdb.
+
+# TASK ORIGINAL
+
+${task}
+
+# DIFF ATUAL
+
+${diff}
+
+Revise e corrija diretamente os arquivos se encontrar problemas.
+Depois responda resumindo o que foi revisado/corrigido.
+`;
+
+  const outputPath = `./ai/output/codex-review-${taskName}.md`;
+  runCodex(prompt, outputPath);
+
+  console.log(`🔎 Revisão do Codex salva em: ${outputPath}`);
+}
+
+function commitChanges() {
+  if (!hasGitChanges()) {
+    console.log("⚠️ Nenhuma mudança foi criada. Commit não será feito.");
+    return false;
+  }
+
+  runCommand("git add .");
+  runCommand(`git commit -m "AI: ${taskName}"`);
+
+  return true;
+}
+
+function createPullRequest(branch, prBodyPath) {
+  runCommand(`git push origin ${branch}`);
+
+  console.log("🚀 Criando Pull Request...");
+
+  runCommand(
+    `gh pr create --title "AI: ${taskName}" --body-file ${prBodyPath}`,
+  );
+
+  console.log("✅ PR criado com sucesso!");
+}
+
+function buildPrompt({ system, context, rules, task }) {
+  return `
 ${system}
 
 ${context}
@@ -195,6 +386,17 @@ ${frontendComponents}
 
 # TASK
 ${task}
+
+# FLUXO HÍBRIDO GEMINI + CODEX
+
+Você é o Gemini nesta etapa.
+
+Responsabilidades do Gemini:
+- Criar somente arquivos novos com # CREATE.
+- Para arquivos existentes, NÃO reescrever o arquivo completo.
+- Para arquivos existentes, usar apenas # MANUAL_UPDATE com instruções objetivas.
+- O Codex aplicará as alterações manuais nos arquivos existentes depois.
+- O Codex também revisará os arquivos criados.
 
 # LEMBRETE FINAL CRÍTICO
 
@@ -219,6 +421,26 @@ REGRAS:
 - Não use blocos com crase.
 - Não escreva explicações fora dos blocos.
 `;
+}
+
+async function run() {
+  const MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash-lite",
+  ];
+
+  const taskPath = `./ai/tasks/${taskName}.md`;
+
+  let prompt;
+
+  try {
+    const system = fs.readFileSync("./ai/system.md", "utf-8");
+    const context = fs.readFileSync("./ai/context.md", "utf-8");
+    const rules = fs.readFileSync("./ai/rules.md", "utf-8");
+    const task = fs.readFileSync(taskPath, "utf-8");
+
+    prompt = buildPrompt({ system, context, rules, task });
   } catch (err) {
     console.error("❌ Erro ao ler arquivos .md:");
     console.error(err.message);
@@ -246,76 +468,79 @@ REGRAS:
       console.log("\n📦 Preview output:");
       console.log(text.slice(0, 500));
 
+      const {
+        rawOutputPath,
+        createOutputPath,
+        manualOutputPath,
+        createBlocksText,
+      } = saveSeparatedOutputs(text, taskName);
+
+      console.log(`\n💾 Output bruto salvo em: ${rawOutputPath}`);
+      console.log(`💾 Arquivos novos salvos em: ${createOutputPath}`);
+      console.log(`📝 Alterações manuais salvas em: ${manualOutputPath}`);
+
       if (!shouldApply) {
-        const { createOutputPath, manualOutputPath } = saveSeparatedOutputs(
-          text,
-          taskName,
-        );
-
-        console.log(`\n💾 Arquivos novos salvos em: ${createOutputPath}`);
-        console.log(`📝 Alterações manuais salvas em: ${manualOutputPath}`);
-
+        console.log("\n✅ Modo preview. Nada foi aplicado.");
         return;
       }
 
-      const branch = `ai/${taskName}-${Date.now()}`;
+      const branch = prepareGitFlow();
 
-      console.log("\n🔄 Voltando para main...");
-      execSync("git checkout main", { stdio: "inherit" });
-
-      console.log("⬇️ Atualizando repo...");
-      execSync("git pull", { stdio: "inherit" });
-
-      console.log(`🌿 Criando branch: ${branch}`);
-      execSync(`git checkout -b ${branch}`, { stdio: "inherit" });
-
-      const { createOutputPath, manualOutputPath, createBlocksText } =
-        saveSeparatedOutputs(text, taskName);
-
-      console.log(`\n💾 Arquivos novos salvos em: ${createOutputPath}`);
-      console.log(`📝 Alterações manuais salvas em: ${manualOutputPath}`);
-
-      console.log("\n⚙️ Criando apenas arquivos novos...");
+      console.log("\n⚙️ Gemini criando apenas arquivos novos...");
       applyCreatesOnly(createBlocksText);
 
+      console.log("\n🛠️ Codex aplicando alterações em arquivos existentes...");
+      runCodexManualUpdates({
+        manualOutputPath,
+        taskPath,
+      });
+
+      console.log("\n🔎 Codex revisando o resultado final...");
+      runCodexReview({
+        taskPath,
+      });
+
       const prBody = `
-Gerado automaticamente pela IA.
+Gerado automaticamente pelo fluxo híbrido Gemini + Codex.
 
-Arquivos novos criados automaticamente:
-${createOutputPath}
+Gemini:
+- Gerou arquivos novos.
+- Gerou instruções de alterações manuais.
 
-Alterações manuais sugeridas:
-${manualOutputPath}
+Codex:
+- Aplicou alterações em arquivos existentes.
+- Revisou o diff final.
 
-Revise as alterações manuais antes de aplicar em arquivos existentes.
+Arquivos de apoio:
+- Output bruto: ${rawOutputPath}
+- Arquivos novos: ${createOutputPath}
+- Alterações manuais: ${manualOutputPath}
+- Aplicação Codex: ./ai/output/codex-apply-${taskName}.md
+- Revisão Codex: ./ai/output/codex-review-${taskName}.md
 `;
 
       const prBodyPath = `./ai/output/pr-body-${taskName}.md`;
       fs.writeFileSync(prBodyPath, prBody);
 
-      if (!hasGitChanges()) {
-        console.log("⚠️ Nenhuma mudança foi criada. PR não será aberto.");
+      if (gitMode === "none") {
+        console.log("\n✅ Aplicado localmente sem commit e sem PR.");
+        console.log("Use git diff para revisar.");
         return;
       }
 
-      execSync("git add .", { stdio: "inherit" });
+      const committed = commitChanges();
 
-      execSync(`git commit -m "AI: ${taskName}"`, {
-        stdio: "inherit",
-      });
+      if (!committed) return;
 
-      execSync(`git push origin ${branch}`, {
-        stdio: "inherit",
-      });
+      if (gitMode === "commit") {
+        console.log("\n✅ Branch criada e commit feito. PR não foi aberto.");
+        return;
+      }
 
-      console.log("🚀 Criando Pull Request...");
-
-      execSync(
-        `gh pr create --title "AI: ${taskName}" --body-file ${prBodyPath}`,
-        { stdio: "inherit" },
-      );
-
-      console.log("✅ PR criado com sucesso!");
+      if (gitMode === "pr") {
+        createPullRequest(branch, prBodyPath);
+        return;
+      }
 
       return;
     } catch (err) {

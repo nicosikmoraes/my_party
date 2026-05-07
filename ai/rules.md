@@ -40,6 +40,8 @@
 - Manter padrão visual existente.
 - Usar loading quando houver chamada assíncrona.
 - Usar toast/feedback quando fizer sentido.
+- Sempre usar toast no formato `showToast(message, type)`, por exemplo: `showToast(errorMessage, "danger")`.
+- Todas as mensagens visíveis ao usuário devem estar em inglês.
 - Reutilizar componentes existentes antes de criar novos.
 - Reutilizar templates/layouts existentes quando a tela seguir o padrão do app.
 - Não usar componentes básicos do React Native diretamente quando houver componente customizado equivalente.
@@ -81,9 +83,47 @@
 
 ---
 
-# 📦 OUTPUT FORMAT OBRIGATÓRIO
+# 🤖 FLUXO HÍBRIDO GEMINI + CODEX
 
-Você DEVE responder apenas usando os blocos abaixo:
+Este projeto usa dois agentes:
+
+## Gemini
+
+Responsável por:
+
+- Ler a task.
+- Planejar a implementação.
+- Criar arquivos novos usando `# CREATE`.
+- Sugerir alterações em arquivos existentes usando `# MANUAL_UPDATE`.
+- NÃO alterar diretamente arquivos existentes.
+- NÃO gerar arquivos existentes completos.
+- NÃO sobrescrever arquivos existentes.
+
+Gemini deve tratar arquivos existentes apenas como instruções para o Codex aplicar depois.
+
+## Codex
+
+Responsável por:
+
+- Aplicar as instruções `# MANUAL_UPDATE` nos arquivos existentes.
+- Alterar arquivos existentes diretamente.
+- Preservar o código atual.
+- Alterar apenas o necessário para cumprir a task.
+- Corrigir imports, tipos, paths, JSX, rotas e integrações simples.
+- Revisar os arquivos criados pelo Gemini.
+- Revisar o diff final.
+- NÃO criar branch.
+- NÃO fazer commit.
+- NÃO fazer push.
+- NÃO abrir Pull Request.
+- NÃO alterar `backend/giftdb`.
+- NÃO alterar arquivos fora de `backend/` e `frontend/`, salvo necessidade real da task.
+
+---
+
+# 📦 OUTPUT FORMAT OBRIGATÓRIO PARA GEMINI
+
+Gemini DEVE responder apenas usando os blocos abaixo:
 
 ## Para arquivos novos
 
@@ -133,14 +173,15 @@ Exemplos proibidos:
 
 Se um arquivo já existe:
 
-- NÃO usar `# CREATE`.
-- NÃO reescrever o arquivo inteiro.
-- NÃO sobrescrever o arquivo.
-- Usar apenas `# MANUAL_UPDATE`.
-- Descrever exatamente o trecho que deve ser adicionado ou alterado.
-- Preservar todo o código existente.
-- Preservar todas as rotas existentes.
-- Preservar todos os imports existentes.
+- Gemini NÃO deve usar `# CREATE`.
+- Gemini NÃO deve reescrever o arquivo inteiro.
+- Gemini NÃO deve sobrescrever o arquivo.
+- Gemini deve usar apenas `# MANUAL_UPDATE`.
+- Gemini deve descrever exatamente o trecho que deve ser adicionado ou alterado.
+- Codex aplicará essa alteração no arquivo existente.
+- Codex deve preservar todo o código existente.
+- Codex deve preservar todas as rotas existentes.
+- Codex deve preservar todos os imports existentes, exceto quando precisar adicionar novos imports.
 
 ---
 
@@ -148,9 +189,9 @@ Se um arquivo já existe:
 
 Para `backend/routes/api.php`:
 
-- Nunca gerar o arquivo inteiro.
-- Nunca sobrescrever o arquivo.
-- Usar apenas `# MANUAL_UPDATE: backend/routes/api.php`.
+- Gemini nunca deve gerar o arquivo inteiro.
+- Gemini nunca deve sobrescrever o arquivo.
+- Gemini deve usar apenas `# MANUAL_UPDATE: backend/routes/api.php`.
 - Informar somente:
   - import necessário, se houver;
   - rota nova a ser adicionada;
@@ -166,17 +207,46 @@ use App\Http\Controllers\TestController;
 Dentro do grupo `Route::middleware('auth:sanctum')->group(function () { ... })`, adicionar:
 Route::get('/test/reversed-name', [TestController::class, 'reversedName']);
 
+Codex deve aplicar essa alteração sem apagar rotas existentes.
+
 ---
 
 # 🧩 REGRAS PARA SERVICES EXISTENTES
 
 Para services já existentes no frontend:
 
-- Nunca sobrescrever o arquivo inteiro.
-- Usar apenas `# MANUAL_UPDATE`.
-- Informar somente a função nova ou o trecho necessário.
+- Gemini nunca deve sobrescrever o arquivo inteiro.
+- Gemini deve usar apenas `# MANUAL_UPDATE`.
+- Gemini deve informar somente a função nova ou o trecho necessário.
+- Codex deve aplicar a alteração preservando funções existentes.
 - Não adicionar comentários explicativos.
 - Não alterar funções existentes sem solicitação explícita.
+
+---
+
+## 🔔 Toasts e feedback
+
+- Sempre que usar toast, seguir exatamente este formato:
+
+showToast(message, type)
+
+Exemplos corretos:
+
+showToast("Event created successfully", "success");
+showToast(errorMessage, "danger");
+
+- O primeiro parâmetro sempre deve ser a mensagem.
+- O segundo parâmetro sempre deve ser o tipo da mensagem.
+- Tipos permitidos:
+  - "success"
+  - "danger"
+
+- Nunca inverter a ordem dos parâmetros.
+- Nunca usar:
+  showToast("danger", errorMessage);
+
+- Mensagens exibidas para o usuário devem ser escritas em inglês.
+- Erros de validação, sucesso, loading, empty states, labels, placeholders e botões também devem estar em inglês.
 
 ---
 
@@ -184,17 +254,64 @@ Para services já existentes no frontend:
 
 Para telas existentes:
 
-- Nunca sobrescrever o arquivo inteiro.
-- Usar apenas `# MANUAL_UPDATE`.
-- Informar exatamente o botão, import ou navegação a adicionar.
-- Preservar layout e lógica existentes.
+- Gemini nunca deve sobrescrever o arquivo inteiro.
+- Gemini deve usar apenas `# MANUAL_UPDATE`.
+- Gemini deve informar exatamente o botão, import, estado, função ou navegação a adicionar.
+- Codex deve aplicar a alteração preservando layout e lógica existentes.
+- Não remover código existente sem necessidade.
+
+---
+
+# 🆕 REGRAS PARA ARQUIVOS NOVOS
+
+Para arquivos novos:
+
+- Gemini pode usar `# CREATE`.
+- O arquivo deve ser completo e funcional.
+- O arquivo deve seguir os padrões do projeto.
+- O arquivo deve usar imports corretos.
+- O arquivo deve usar componentes reutilizáveis existentes.
+- Codex poderá revisar e corrigir pequenos problemas depois.
+
+---
+
+# 🧪 REGRAS DE REVISÃO DO CODEX
+
+Ao revisar o diff final, Codex deve verificar:
+
+- imports quebrados;
+- paths errados;
+- tipos TypeScript inconsistentes;
+- JSX inválido;
+- rotas faltando;
+- controllers sem import;
+- models sem relacionamento necessário;
+- services retornando formato incompatível;
+- componentes chamando API diretamente;
+- uso incorreto de toast;
+- uso incorreto de campos reais do banco;
+- código que sobrescreveu algo sem necessidade.
+
+Codex pode corrigir esses problemas diretamente.
+
+Codex NÃO deve:
+
+- mudar escopo da task;
+- refatorar partes não relacionadas;
+- criar nova arquitetura sem pedido;
+- mexer no banco SQLite local;
+- criar commit;
+- abrir PR;
+- fazer push.
 
 ---
 
 # 🧠 COMPORTAMENTO ESPERADO
 
-- Criar automaticamente apenas arquivos novos.
-- Para alterações em arquivos existentes, apenas instruir a mudança manual.
+- Gemini cria automaticamente apenas arquivos novos.
+- Gemini instrui alterações em arquivos existentes.
+- Codex aplica alterações em arquivos existentes.
+- Codex revisa o resultado final.
 - Integrar com código já existente.
 - Evitar código desnecessário.
 - Garantir que o código seja coerente com Laravel, Sanctum, React Native e Expo Router.
@@ -202,9 +319,9 @@ Para telas existentes:
 
 ---
 
-# ⚠️ VALIDAÇÃO FINAL
+# ⚠️ VALIDAÇÃO FINAL DO GEMINI
 
-Antes de responder, verifique:
+Antes de responder, Gemini deve verificar:
 
 - Usei somente `# CREATE:` ou `# MANUAL_UPDATE:`?
 - Não usei `# FILE:`?
@@ -213,4 +330,23 @@ Antes de responder, verifique:
 - Não usei markdown com crases?
 - Não escrevi explicações fora dos blocos?
 
-Se qualquer resposta for NÃO, corrija antes de enviar.
+Se qualquer resposta for NÃO, corrigir antes de enviar.
+
+---
+
+# ⚠️ VALIDAÇÃO FINAL DO CODEX
+
+Antes de finalizar, Codex deve verificar:
+
+- A task original foi cumprida?
+- Os arquivos existentes foram preservados?
+- Não houve remoção acidental de rotas, imports ou funções?
+- O projeto continua coerente com os padrões existentes?
+- Não alterou `backend/giftdb`?
+- Não criou commit?
+- Não criou branch?
+- Não abriu PR?
+- Verificar se todos os usos de showToast seguem o formato showToast(message, type).
+- Verificar se textos visíveis ao usuário estão em inglês.
+
+Se encontrar problema simples, corrigir diretamente.
