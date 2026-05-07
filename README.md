@@ -2,7 +2,7 @@
 
 ## Sobre o app
 
-O GiftHelp é um aplicativo móvel desenvolvido com React Native utilizando Expo e Laravel, com o objetivo de facilitar a organização de presentes em eventos como aniversários, amigo secreto e Natal.
+O MyParty é um aplicativo móvel desenvolvido com React Native utilizando Expo e Laravel, com o objetivo de facilitar a organização de presentes em eventos como aniversários, amigo secreto e Natal.
 
 O aplicativo permite que cada usuário crie um perfil com informações úteis para escolha de presentes, como tamanho de roupas, tamanho de calçados, preferências de estilo e itens que não utiliza.
 
