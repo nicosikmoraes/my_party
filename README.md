@@ -1,4 +1,4 @@
-# GiftHelp
+# MyParty
 
 ## Sobre o app
 
