@@ -9,6 +9,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Friendship;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\Event;
+use App\Models\EventParticipant;
 
 class User extends Authenticatable
 {
@@ -70,5 +74,22 @@ class User extends Authenticatable
                 ->where('receiver_id', $this->id)
                 ->where('status', 'accepted');
         });
+    }
+
+     public function createdEvents(): HasMany
+    {
+        return $this->hasMany(Event::class, 'created_by_user_id');
+    }
+
+    public function eventParticipations(): HasMany
+    {
+        return $this->hasMany(EventParticipant::class);
+    }
+
+    public function events(): BelongsToMany
+    {
+        return $this->belongsToMany(Event::class, 'event_participants')
+                    ->withPivot('is_accepted')
+                    ->withTimestamps();
     }
 }

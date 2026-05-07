@@ -40,65 +40,56 @@ class EventController extends Controller
         return response()->json($event);
     }
 
-    public function store(StoreEventRequest $request): JsonResponse
-    {
-        $user = $request->user();
+   public function store(StoreEventRequest $request): JsonResponse
+{
+    $user = $request->user();
 
-        try {
-            DB::beginTransaction();
+    try {
+        DB::beginTransaction();
 
-            $event = Event::create([
-                'created_by_user_id' => $user->id,
-                'title' => $request->title,
-                'type' => $request->type,
-                'date' => $request->date,
-                'address' => $request->address,
-                'description' => $request->description,
-            ]);
+        $event = Event::create([
+            'created_by_user_id' => $user->id,
+            'title' => $request->title,
+            'type' => $request->type,
+            'date' => $request->date,
+            'address' => $request->address,
+            'description' => $request->description,
+        ]);
 
-            if ($request->has('participants')) {
-                $participantIds = array_unique($request->participants);
-                
-                // Ensure participants are friends to the event creator
-                $friends = $user->friends()->whereIn('receiver_id', $participantIds)
-                               ->orWhereIn('sender_id', $participantIds)
-                               ->accepted()
-                               ->get()
-                               ->pluck('id');
+        $participantIds = collect($request->participants ?? [])
+            ->unique()
+            ->filter(fn ($participantId) => (int) $participantId !== (int) $user->id)
+            ->values();
 
-                $validParticipantIds = User::whereIn('id', $participantIds)
-                                           ->where(function ($query) use ($user) {
-                                               $query->whereHas('friendsAsSender', function ($q) use ($user) {
-                                                   $q->where('receiver_id', $user->id)->where('status', 'accepted');
-                                               })
-                                               ->orWhereHas('friendsAsReceiver', function ($q) use ($user) {
-                                                   $q->where('sender_id', $user->id)->where('status', 'accepted');
-                                               });
-                                           })
-                                           ->pluck('id')
-                                           ->toArray();
+        if ($participantIds->isNotEmpty()) {
+            $validParticipantIds = User::whereIn('id', $participantIds)
+                ->pluck('id');
 
-                foreach ($validParticipantIds as $participantId) {
-                    if ($participantId !== $user->id) { // Ensure creator is not added as participant
-                        EventParticipant::firstOrCreate([
-                            'event_id' => $event->id,
-                            'user_id' => $participantId,
-                        ], [
-                            'is_accepted' => false,
-                        ]);
-                    }
-                }
+            foreach ($validParticipantIds as $participantId) {
+                EventParticipant::firstOrCreate([
+                    'event_id' => $event->id,
+                    'user_id' => $participantId,
+                ], [
+                    'is_accepted' => false,
+                ]);
             }
-
-            DB::commit();
-
-            return response()->json($event->load('creator:id,name,email', 'users:id,name,email'), 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Erro ao criar evento.', 'error' => $e->getMessage()], 500);
         }
+
+        DB::commit();
+
+        return response()->json(
+            $event->load('creator:id,name,email', 'users:id,name,email'),
+            201
+        );
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'message' => 'Erro ao criar evento.',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
 
     public function update(UpdateEventRequest $request, Event $event): JsonResponse
     {

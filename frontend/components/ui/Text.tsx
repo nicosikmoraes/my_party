@@ -13,6 +13,7 @@ type Props = {
   message: string | undefined;
   opacity?: number;
   textAlign?: any;
+  marginLeft?: number;
   onPress?: () => void;
 };
 
@@ -23,6 +24,7 @@ export default function TextComponent({
   opacity = 1,
   textAlign = "center",
   message,
+  marginLeft = 0,
   onPress,
 }: Props) {
   const [fontsLoaded] = useFonts({
@@ -42,6 +44,7 @@ export default function TextComponent({
         { fontWeight: fontWeight },
         { opacity: opacity },
         { textAlign: textAlign },
+        { marginLeft: marginLeft },
       ]}
     >
       {message}

@@ -2,10 +2,10 @@
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\GiftController;
 use App\Http\Controllers\FriendshipController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\EventParticipantController;
 
 
 Route::post('/register', [AuthController::class,'register']);
@@ -38,6 +38,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/friends/{friendship}/accept', [FriendshipController::class, 'accept']);
     Route::get('/users/search', [FriendshipController::class, 'search']);
     Route::get('/friends', [FriendshipController::class, 'friends']);
+
+        Route::prefix('events')->group(function () {
+        Route::get('/', [EventController::class, 'index']);
+        Route::post('/', [EventController::class, 'store']);
+        Route::get('/types', [EventController::class, 'types']);
+        Route::get('/{event}', [EventController::class, 'show']);
+        Route::put('/{event}', [EventController::class, 'update']);
+        Route::delete('/{event}', [EventController::class, 'destroy']);
+
+        Route::post('/{event}/accept', [EventParticipantController::class, 'accept']);
+        Route::post('/{event}/decline', [EventParticipantController::class, 'decline']);
+    });
 });
 
 Route::get('/test', function () {

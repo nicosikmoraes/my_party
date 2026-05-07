@@ -6,8 +6,6 @@ use App\Traits\HasEnumLabels;
 
 enum EventType: string
 {
-    use HasEnumLabels;
-
     case Party = 'party';
     case SecretFriend = 'secret_friend';
     case Hangout = 'hangout';

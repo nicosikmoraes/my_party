@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import { TextComponent } from '../ui/Text';
-import { friendService } from '../../services/friendService'; // Assuming friendService exists
-import { UserBasic } from '../../types/event'; // Assuming a basic User type from event.ts for friends
-import { Check } from 'lucide-react-native'; // Assuming lucide-react-native for icons
+import React, { useState, useEffect } from "react";
+import { View, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import { getFriends } from "../../services/friendshipService";
+import { UserBasic } from "../../types/event";
+import TextComponent from "../ui/Text";
+import { Ionicons } from "@expo/vector-icons";
 
 interface Friend {
   id: number;
@@ -15,30 +15,33 @@ interface EventParticipantsSelectorProps {
   initialSelectedParticipants?: number[];
 }
 
-export const EventParticipantsSelector: React.FC<EventParticipantsSelectorProps> = ({
-  onParticipantsChange,
-  initialSelectedParticipants = [],
-}) => {
+export const EventParticipantsSelector: React.FC<
+  EventParticipantsSelectorProps
+> = ({ onParticipantsChange, initialSelectedParticipants = [] }) => {
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [selectedParticipants, setSelectedParticipants] = useState<number[]>(initialSelectedParticipants);
+  const [selectedParticipants, setSelectedParticipants] = useState<number[]>(
+    initialSelectedParticipants,
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchFriends = async () => {
       try {
         setLoading(true);
-        // Assuming friendService.getFriends() returns friends with id and name
-        // Filter only accepted friends and current user (if current user can't be participant)
-        const allFriends = await friendService.getFriends();
-        const acceptedFriends = allFriends.filter(
-          (friend: any) => friend.status === 'accepted' && friend.user_id !== friend.friend_id // Assuming friend.id is the current user's friend_id is the other user
-        ).map((friend: any) => ({
-          id: friend.friend.id,
-          name: friend.friend.name,
-        })); // Adjust based on actual friendService response structure
+        const allFriends = await getFriends();
+        const acceptedFriends = allFriends
+          .filter(
+            (friend: any) =>
+              friend.status === "accepted" &&
+              friend.user_id !== friend.friend_id,
+          )
+          .map((friend: any) => ({
+            id: friend.friend.id,
+            name: friend.friend.name,
+          }));
         setFriends(acceptedFriends);
       } catch (error) {
-        console.error('Failed to fetch friends:', error);
+        console.error("Failed to fetch friends:", error);
       } finally {
         setLoading(false);
       }
@@ -60,12 +63,16 @@ export const EventParticipantsSelector: React.FC<EventParticipantsSelectorProps>
   }
 
   if (friends.length === 0) {
-    return <TextComponent message="Nenhum amigo aceito para convidar." />;
+    return <TextComponent message="No Friend" />;
   }
 
   return (
     <View style={styles.container}>
-      <TextComponent message="Convide amigos:" fontWeight="bold" textAlign="left" marginBottom={10} />
+      <TextComponent
+        message="Convide amigos:"
+        fontWeight="bold"
+        textAlign="left"
+      />
       <FlatList
         data={friends}
         keyExtractor={(item) => item.id.toString()}
@@ -73,13 +80,20 @@ export const EventParticipantsSelector: React.FC<EventParticipantsSelectorProps>
           <TouchableOpacity
             style={[
               styles.friendItem,
-              selectedParticipants.includes(item.id) && styles.selectedFriendItem,
+              selectedParticipants.includes(item.id) &&
+                styles.selectedFriendItem,
             ]}
             onPress={() => toggleParticipant(item.id)}
           >
-            <TextComponent message={item.name} color={selectedParticipants.includes(item.id) ? '#F8FAFC' : '#B3B3B3'} textAlign="left" />
+            <TextComponent
+              message={item.name}
+              color={
+                selectedParticipants.includes(item.id) ? "#F8FAFC" : "#B3B3B3"
+              }
+              textAlign="left"
+            />
             {selectedParticipants.includes(item.id) && (
-              <Check size={20} color="#E65C00" />
+              <Ionicons name="checkmark-outline" size={20} color="#E65C00" />
             )}
           </TouchableOpacity>
         )}
@@ -91,21 +105,21 @@ export const EventParticipantsSelector: React.FC<EventParticipantsSelectorProps>
 const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
-    width: '100%',
+    width: "100%",
   },
   friendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 8,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: "#1A1A1A",
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#1A1A1A',
+    borderColor: "#1A1A1A",
   },
   selectedFriendItem: {
-    borderColor: '#E65C00',
+    borderColor: "#E65C00",
   },
 });
