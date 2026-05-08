@@ -15,12 +15,12 @@ const CreateEventScreen: React.FC = () => {
     setLoading(true);
     try {
       await eventService.createEvent(payload);
-      showToast("Evento criado com sucesso!", "success");
+      showToast("Event created successfully", "success");
       router.back();
     } catch (error: any) {
       console.error("Failed to create event:", error);
       const errorMessage =
-        error.response?.data?.message || "Erro ao criar evento.";
+        error.response?.data?.message || "Error creating event.";
       showToast(errorMessage, "danger");
     } finally {
       setLoading(false);

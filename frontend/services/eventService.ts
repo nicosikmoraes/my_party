@@ -51,6 +51,17 @@ export const eventService = {
     return response.data;
   },
 
+  async inviteUserToEvent(
+    eventId: number,
+    userId: number,
+  ): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>(
+      `/events/${eventId}/invite`,
+      { user_id: userId },
+    );
+    return response.data;
+  },
+
   async getEventTypes(): Promise<EventTypeOption[]> {
     const response = await api.get<EventTypeOption[]>("/events/types");
     return response.data;

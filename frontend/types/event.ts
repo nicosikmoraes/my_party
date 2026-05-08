@@ -7,6 +7,9 @@ export interface UserBasic {
   id: number;
   name: string;
   email: string;
+  pivot?: {
+    is_accepted?: boolean | number;
+  };
 }
 
 export interface EventParticipant {
@@ -26,7 +29,7 @@ export interface Event {
   address: string;
   description?: string;
   creator: UserBasic;
-  participants: EventParticipant[];
+  participants?: EventParticipant[];
   users: UserBasic[]; // Users related through event_participants
 }
 

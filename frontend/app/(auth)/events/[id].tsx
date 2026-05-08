@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, StyleSheet, ScrollView, Alert } from "react-native";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { eventService } from "../../../services/eventService";
 import { Event } from "../../../types/event";
-import { showToast } from "../../../utils/toast"; // Assuming toast utility exists
+import { showToast } from "../../../utils/toast";
 import Loading from "@/components/ui/Loading";
 import BlankTemplate from "@/components/template/Blank";
 import TextComponent from "@/components/ui/Text";
 import TitleComponent from "@/components/ui/Title";
 import IconButton from "@/components/ui/PressableIcon";
 import PressableComponent from "@/components/ui/Pressable";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/useAuth";
 
 const EventDetailScreen: React.FC = () => {
@@ -20,7 +20,7 @@ const EventDetailScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
-  const [isCreator, setIsCreator] = useState(false); // This would need to be checked against authenticated user ID
+  const [isCreator, setIsCreator] = useState(false);
 
   const fetchEventDetails = async () => {
     if (!eventId) return;
@@ -28,11 +28,11 @@ const EventDetailScreen: React.FC = () => {
     try {
       const fetchedEvent = await eventService.getEventById(eventId);
       setEvent(fetchedEvent);
-      setIsCreator(fetchedEvent.creator.id === 1);
+      setIsCreator(fetchedEvent.created_by_user_id === user?.id);
     } catch (error: any) {
       console.error("Failed to fetch event details:", error);
       const errorMessage =
-        error.response?.data?.message || "Erro ao carregar detalhes do evento.";
+        error.response?.data?.message || "Error loading event details.";
       showToast(errorMessage, "danger");
       router.back();
     } finally {
@@ -43,28 +43,28 @@ const EventDetailScreen: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       fetchEventDetails();
-    }, [eventId]),
+    }, [eventId, user?.id]),
   );
 
   const handleDelete = () => {
     Alert.alert(
-      "Confirmar Exclusão",
-      "Tem certeza que deseja excluir este evento? Esta ação é irreversível.",
+      "Confirm deletion",
+      "Are you sure you want to delete this event? This action cannot be undone.",
       [
-        { text: "Cancelar", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         {
-          text: "Excluir",
+          text: "Delete",
           style: "destructive",
           onPress: async () => {
             setActionLoading(true);
             try {
               await eventService.deleteEvent(eventId!);
-              showToast("Evento excluído com sucesso!", "success");
+              showToast("Event deleted successfully", "success");
               router.back();
             } catch (error: any) {
               console.error("Failed to delete event:", error);
               const errorMessage =
-                error.response?.data?.message || "Erro ao excluir evento.";
+                error.response?.data?.message || "Error deleting event.";
               showToast(errorMessage, "danger");
             } finally {
               setActionLoading(false);
@@ -80,12 +80,12 @@ const EventDetailScreen: React.FC = () => {
     setActionLoading(true);
     try {
       await eventService.acceptEvent(eventId!);
-      showToast("Convite aceito!", "danger");
+      showToast("Invite accepted", "success");
       fetchEventDetails();
     } catch (error: any) {
       console.error("Failed to accept invite:", error);
       const errorMessage =
-        error.response?.data?.message || "Erro ao aceitar convite.";
+        error.response?.data?.message || "Error accepting invite.";
       showToast(errorMessage, "danger");
     } finally {
       setActionLoading(false);
@@ -96,12 +96,12 @@ const EventDetailScreen: React.FC = () => {
     setActionLoading(true);
     try {
       await eventService.declineEvent(eventId!);
-      showToast("Convite recusado!", "success");
-      router.back(); // Or refresh and show no longer participating
+      showToast("Invite declined", "success");
+      router.back();
     } catch (error: any) {
       console.error("Failed to decline invite:", error);
       const errorMessage =
-        error.response?.data?.message || "Erro ao recusar convite.";
+        error.response?.data?.message || "Error declining invite.";
       showToast(errorMessage, "danger");
     } finally {
       setActionLoading(false);
@@ -115,126 +115,227 @@ const EventDetailScreen: React.FC = () => {
   if (!event) {
     return (
       <BlankTemplate>
-        <TextComponent message="Evento não encontrado." />
+        <TextComponent message="Event not found." />
+        <PressableComponent
+          message="Go Back"
+          onPress={() => router.back()}
+          marginTop={20}
+        />
       </BlankTemplate>
     );
   }
 
-  const formattedDate = new Date(event.date).toLocaleString("pt-BR", {
+  const formattedDate = new Date(event.date).toLocaleDateString("en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+  });
+  const formattedTime = new Date(event.date).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
+  const invitedUsers = event.users || [];
+  const currentUserInvite = invitedUsers.find(
+    (participant) => participant.id === user?.id,
+  );
+  const currentParticipant = event.participants?.find(
+    (participant) => participant.user_id === user?.id,
+  );
+  const currentInviteAccepted =
+    currentParticipant?.is_accepted ||
+    Boolean(currentUserInvite?.pivot?.is_accepted);
+  const canRespondToInvite =
+    !isCreator && Boolean(currentUserInvite) && !currentInviteAccepted;
 
   return (
     <BlankTemplate>
       <ScrollView contentContainerStyle={styles.container}>
         <Loading visible={actionLoading} />
         <View style={styles.header}>
-          <TitleComponent message={event.title} />
+          <View style={styles.titleContainer}>
+            <TitleComponent message={event.title} />
+            {isCreator && (
+              <MaterialCommunityIcons
+                name="crown"
+                size={24}
+                color="#E65C00"
+                style={styles.crownIcon}
+              />
+            )}
+          </View>
+
           {isCreator && (
-            <View style={styles.actionButtons}>
-              <TextComponent message="Edir" />
+            <View style={styles.iconActions}>
               <IconButton
                 icon={
                   <Ionicons name="pencil-outline" size={24} color="#E65C00" />
                 }
                 onPress={() => router.push(`/events/edit/${event.id}`)}
+                size={45}
+                backgroundColor="#1A1A1A"
+                borderRadius={10}
               />
               <IconButton
-                icon={<Ionicons name="trash" size={24} color="red" />}
+                icon={
+                  <Ionicons name="trash-outline" size={24} color="#E53935" />
+                }
                 onPress={handleDelete}
+                size={45}
+                backgroundColor="#1A1A1A"
+                borderRadius={10}
               />
             </View>
           )}
         </View>
 
-        <View style={styles.detailRow}>
-          <TextComponent message="Tipo:" fontWeight="bold" textAlign="left" />
-          <TextComponent message={event.type} textAlign="left" />
+        <View style={styles.card}>
+          <View style={styles.infoRow}>
+            <Ionicons name="calendar-outline" size={20} color="#F8FAFC" />
+            <TextComponent
+              message={formattedDate}
+              fontSize={16}
+              textAlign="left"
+              marginLeft={10}
+            />
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="time-outline" size={20} color="#F8FAFC" />
+            <TextComponent
+              message={formattedTime}
+              fontSize={16}
+              textAlign="left"
+              marginLeft={10}
+            />
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="location-outline" size={20} color="#F8FAFC" />
+            <TextComponent
+              message={event.address}
+              fontSize={16}
+              textAlign="left"
+              marginLeft={10}
+            />
+          </View>
         </View>
-        <View style={styles.detailRow}>
-          <TextComponent message="Data:" fontWeight="bold" textAlign="left" />
-          <TextComponent message={formattedDate} textAlign="left" />
-        </View>
-        <View style={styles.detailRow}>
+
+        <View style={styles.card}>
           <TextComponent
-            message="Endereço:"
+            message="Description"
             fontWeight="bold"
+            fontSize={16}
             textAlign="left"
           />
-          <TextComponent message={event.address} textAlign="left" />
+          <TextComponent
+            message={event.description || "No description provided."}
+            color="#B3B3B3"
+            textAlign="left"
+          />
         </View>
-        {event.description && (
-          <View style={styles.detailRow}>
+
+        <View style={styles.card}>
+          <TextComponent
+            message="Created By"
+            fontWeight="bold"
+            fontSize={16}
+            textAlign="left"
+          />
+          <TextComponent
+            message={event.creator?.name || "Unknown"}
+            color="#B3B3B3"
+            textAlign="left"
+          />
+        </View>
+
+        {invitedUsers.length > 0 && (
+          <View style={styles.card}>
             <TextComponent
-              message="Descrição:"
+              message="Participants"
               fontWeight="bold"
+              fontSize={16}
               textAlign="left"
             />
-            <TextComponent message={event.description} textAlign="left" />
+            {invitedUsers.map((participantUser) => {
+              const participant = event.participants?.find(
+                (eventParticipant) =>
+                  eventParticipant.user_id === participantUser.id,
+              );
+              const accepted =
+                participant?.is_accepted ||
+                Boolean(participantUser.pivot?.is_accepted);
+
+              return (
+                <View key={participantUser.id} style={styles.participantRow}>
+                  <Ionicons
+                    name="person-circle-outline"
+                    size={20}
+                    color="#B3B3B3"
+                  />
+                  <View style={styles.participantName}>
+                    <TextComponent
+                      message={participantUser.name || "Unknown User"}
+                      color="#B3B3B3"
+                      textAlign="left"
+                    />
+                  </View>
+                  <TextComponent
+                    message={accepted ? "Accepted" : "Pending"}
+                    fontSize={12}
+                    color={accepted ? "#4CAF50" : "#E65C00"}
+                    textAlign="right"
+                  />
+                </View>
+              );
+            })}
           </View>
         )}
-        <View style={styles.detailRow}>
-          <TextComponent
-            message="Criador:"
-            fontWeight="bold"
-            textAlign="left"
-          />
-          <TextComponent message={event.creator.name} textAlign="left" />
-        </View>
 
-        <TextComponent
-          message="Participantes Confirmados:"
-          fontWeight="bold"
-          textAlign="left"
-        />
-        {event.users.filter((u) =>
-          event.participants.find((p) => p.user_id === u.id && p.is_accepted),
-        ).length > 0 ? (
-          event.users
-            .filter((u) =>
-              event.participants.find(
-                (p) => p.user_id === u.id && p.is_accepted,
-              ),
-            )
-            .map((user) => (
-              <TextComponent
-                key={user.id}
-                message={`- ${user.name}`}
-                textAlign="left"
-              />
-            ))
-        ) : (
-          <TextComponent
-            message="Nenhum participante confirmado ainda."
-            textAlign="left"
-          />
+        {canRespondToInvite && (
+          <View style={styles.inviteActions}>
+            <PressableComponent
+              message="Accept Invite"
+              onPress={handleAcceptInvite}
+              backgroundColor="#4CAF50"
+              marginTop={10}
+              width="48%"
+            />
+            <PressableComponent
+              message="Decline Invite"
+              onPress={handleDeclineInvite}
+              backgroundColor="#E53935"
+              marginTop={10}
+              width="48%"
+            />
+          </View>
         )}
 
-        {!isCreator &&
-          user &&
-          event.users?.some((participant) => participant.id === user.id) && (
-            <View style={styles.inviteActions}>
-              <PressableComponent
-                message="Aceitar Convite"
-                onPress={handleAcceptInvite}
-                backgroundColor="#4CAF50"
-                marginTop={20}
-                width="48%"
-              />
+        {isCreator && (
+          <View style={styles.creatorActions}>
+            <PressableComponent
+              message="Invite Users"
+              onPress={() => router.push(`/events/${event.id}/invite`)}
+              marginTop={10}
+              width="100%"
+              borderRadius={10}
+              padding={0}
+            />
+          </View>
+        )}
 
-              <PressableComponent
-                message="Recusar Convite"
-                onPress={handleDeclineInvite}
-                backgroundColor="#E53935"
-                marginTop={20}
-                width="48%"
-              />
-            </View>
-          )}
+        {currentUserInvite && !isCreator && (
+          <View style={styles.card}>
+            <TextComponent
+              message="Invite Status"
+              fontWeight="bold"
+              fontSize={16}
+              textAlign="left"
+            />
+            <TextComponent
+              message={currentInviteAccepted ? "Accepted" : "Pending"}
+              color={currentInviteAccepted ? "#4CAF50" : "#E65C00"}
+              textAlign="left"
+            />
+          </View>
+        )}
       </ScrollView>
     </BlankTemplate>
   );
@@ -247,25 +348,54 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
+    display: "flex",
+    marginBottom: 20,
+    width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
   },
-  actionButtons: {
+  titleContainer: {
     flexDirection: "row",
-    gap: 10,
+    alignItems: "center",
+    marginBottom: 5,
   },
-  detailRow: {
+  crownIcon: {
+    marginLeft: 10,
+  },
+  card: {
+    backgroundColor: "#1A1A1A",
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+    width: "100%",
+  },
+  infoRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
+  },
+  participantRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  participantName: {
+    flex: 1,
+    marginLeft: 10,
   },
   inviteActions: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
-    marginTop: 20,
+    marginBottom: 10,
+  },
+  creatorActions: {
+    width: "100%",
+  },
+  iconActions: {
+    flexDirection: "row",
+    gap: 5,
   },
 });
 
