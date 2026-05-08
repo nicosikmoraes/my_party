@@ -161,22 +161,22 @@ export const EventForm: React.FC<EventFormProps> = ({
   function validateForm() {
     const errors: Record<string, string> = {};
 
-    if (!title.trim()) errors.title = "Título é obrigatório.";
-    if (!type.trim()) errors.type = "Tipo é obrigatório.";
+    if (!title.trim()) errors.title = "Title is required.";
+    if (!type.trim()) errors.type = "Type is required.";
 
     if (!date.trim()) {
-      errors.date = "Data é obrigatória.";
+      errors.date = "Date is required.";
     } else if (!isValidDate(date)) {
-      errors.date = "Data inválida. Use DD/MM/AAAA.";
+      errors.date = "Invalid date. Use DD/MM/YYYY.";
     }
 
     if (!time.trim()) {
-      errors.time = "Hora é obrigatória.";
+      errors.time = "Time is required.";
     } else if (!isValidTime(time)) {
-      errors.time = "Hora inválida. Use HH:MM.";
+      errors.time = "Invalid time. Use HH:MM.";
     }
 
-    if (!address.trim()) errors.address = "Endereço é obrigatório.";
+    if (!address.trim()) errors.address = "Address is required.";
 
     setFormErrors(errors);
 
@@ -240,7 +240,7 @@ export const EventForm: React.FC<EventFormProps> = ({
           onChangeText={handleDateChange}
           error={formErrors.date}
           borderError={formErrors.date ? "red" : "transparent"}
-          placeholder="DD/MM/AAAA"
+          placeholder="DD/MM/YYYY"
           keyboardType="numeric"
           maxLength={10}
           width="58%"
@@ -280,7 +280,7 @@ export const EventForm: React.FC<EventFormProps> = ({
       />
 
       <PressableComponent
-        message={initialValues ? "Salvar Alterações" : "Criar Evento"}
+        message={initialValues ? "Save Changes" : "Create Event"}
         onPress={handleSubmit}
         loading={loading}
         width="100%"

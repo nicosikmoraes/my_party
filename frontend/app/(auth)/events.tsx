@@ -62,11 +62,16 @@ export default function Events() {
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => (
               <EventItem
+                id={item.id}
                 title={item.title}
                 type={item.type}
                 date={item.date}
                 address={item.address}
+                isCreator={user?.id === item.created_by_user_id}
                 onPress={() => router.push(`/events/${item.id}`)}
+                onInvitePress={(eventId) =>
+                  router.push(`/events/${eventId}/invite`)
+                }
               />
             )}
             contentContainerStyle={styles.listContent}

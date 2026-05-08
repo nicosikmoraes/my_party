@@ -1,5 +1,10 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import {
+  GestureResponderEvent,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 
 type Props = {
   icon: React.ReactNode; // 🔥 recebe qualquer ícone
@@ -7,7 +12,7 @@ type Props = {
   backgroundColor?: string;
   borderRadius?: number;
   marginTop?: number;
-  onPress?: () => void;
+  onPress?: (event: GestureResponderEvent) => void;
 };
 
 export default function IconButton({

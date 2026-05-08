@@ -28,7 +28,7 @@ const EditEventScreen: React.FC = () => {
         console.error("Failed to fetch event for edit:", error);
         const errorMessage =
           error.response?.data?.message ||
-          "Erro ao carregar evento para edição.";
+          "Error loading event for editing.";
         showToast(errorMessage, "danger");
         router.back();
       } finally {
@@ -43,12 +43,12 @@ const EditEventScreen: React.FC = () => {
     setLoadingSubmit(true);
     try {
       await eventService.updateEvent(eventId, payload);
-      showToast("Evento atualizado com sucesso!", "success");
+      showToast("Event updated successfully", "success");
       router.back(); // Or navigate to event details
     } catch (error: any) {
       console.error("Failed to update event:", error);
       const errorMessage =
-        error.response?.data?.message || "Erro ao atualizar evento.";
+        error.response?.data?.message || "Error updating event.";
       showToast(errorMessage, "danger");
     } finally {
       setLoadingSubmit(false);
@@ -62,7 +62,7 @@ const EditEventScreen: React.FC = () => {
   if (!event) {
     return (
       <BlankTemplate>
-        <TextComponent message="Evento não encontrado para edição." />
+        <TextComponent message="Event not found for editing." />
       </BlankTemplate>
     );
   }
@@ -70,7 +70,7 @@ const EditEventScreen: React.FC = () => {
   return (
     <BlankTemplate>
       <View style={styles.header}>
-        <TitleComponent message="Editar Evento" />
+        <TitleComponent message="Edit Event" />
       </View>
       <EventForm
         initialValues={event}

@@ -16,7 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 const InviteUsersToEventScreen: React.FC = () => {
   const { id: eventIdParam } = useLocalSearchParams();
-  const eventId = typeof eventIdParam === "string" ? Number(eventIdParam) : undefined;
+  const eventId =
+    typeof eventIdParam === "string" ? Number(eventIdParam) : undefined;
   const { user: currentUser } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -59,7 +60,9 @@ const InviteUsersToEventScreen: React.FC = () => {
     setHasSearched(true);
     try {
       const users = await searchUsers(searchQuery.trim());
-      setSearchResults(users.filter((u: InviteUser) => u.id !== currentUser?.id));
+      setSearchResults(
+        users.filter((u: InviteUser) => u.id !== currentUser?.id),
+      );
     } catch (error: any) {
       showToast(
         error?.response?.data?.message || "Error searching users",
@@ -141,6 +144,7 @@ const InviteUsersToEventScreen: React.FC = () => {
             width="28%"
             height={45}
             borderRadius={8}
+            padding={0}
           />
         </View>
 
@@ -176,7 +180,8 @@ const InviteUsersToEventScreen: React.FC = () => {
             textAlign="left"
           />
           <View style={styles.list}>
-            {friends.filter((friend) => friend.id !== currentUser?.id).length > 0 ? (
+            {friends.filter((friend) => friend.id !== currentUser?.id).length >
+            0 ? (
               friends
                 .filter((friend) => friend.id !== currentUser?.id)
                 .map((item) => <View key={item.id}>{renderUser(item)}</View>)

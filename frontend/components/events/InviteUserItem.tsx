@@ -29,9 +29,6 @@ export const InviteUserItem: React.FC<InviteUserItemProps> = ({
         <Ionicons name="person-circle-outline" size={32} color="#F8FAFC" />
         <View style={styles.textContainer}>
           <TextComponent message={user.name} fontSize={16} />
-          {user.email && (
-            <TextComponent message={user.email} color="#B3B3B3" fontSize={12} />
-          )}
         </View>
       </View>
       <PressableComponent
@@ -46,6 +43,7 @@ export const InviteUserItem: React.FC<InviteUserItemProps> = ({
         height={35}
         borderRadius={8}
         backgroundColor={invited ? "#333" : "#E65C00"}
+        padding={0}
       />
     </View>
   );
