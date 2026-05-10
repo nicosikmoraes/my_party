@@ -17,10 +17,11 @@ Além disso, o sistema permite a criação de eventos onde os participantes pode
 - [x] Informar preferências pessoais (roupa, calçado, estilo, etc)
 - [x] Lista de desejos pessoal
 - [x] Criar eventos
-- [ ] Convidar participantes para eventos
+- [x] Convidar participantes para eventos
 - [ ] Adicionar sugestões de presentes
 - [ ] Visualizar sugestões de presentes
 - [ ] Marcar presente como comprado (modo aniversário)
+- [ ] Visitar o perfil do seus amigos
 
 ### Tipos de evento
 
