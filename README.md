@@ -59,7 +59,7 @@ https://excalidraw.com/#json=oyWilCEpC4YSPySMdzDUy,Gx9Yd7W4fivKAeXkq3ZSDg
 ### Figma / Layout
 https://www.figma.com/design/m9L6NqOqb86mtJ9M0yajCF/GiftHelper?node-id=0-1&p=f&t=szYYcxG5XylHqagM-0
 
-## Usability Video
+## Video de usabilidade
 https://youtube.com/shorts/ezpm__sjcHc
 
 ## Planejamento de Sprints
