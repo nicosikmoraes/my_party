@@ -58,9 +58,12 @@ https://excalidraw.com/#json=oyWilCEpC4YSPySMdzDUy,Gx9Yd7W4fivKAeXkq3ZSDg
 ### Figma / Layout
 https://www.figma.com/design/m9L6NqOqb86mtJ9M0yajCF/GiftHelper?node-id=0-1&p=f&t=szYYcxG5XylHqagM-0
 
+## Usability Video
+https://youtube.com/shorts/ezpm__sjcHc
+
 ## Planejamento de Sprints
 
-### Sprint 1 (Semana 1) - 30/03/2026 
+### Sprint 1 (Semana 1) - OK
 
 - Criar repositório no GitHub
 - Criar tela de login/registro
@@ -71,17 +74,16 @@ https://www.figma.com/design/m9L6NqOqb86mtJ9M0yajCF/GiftHelper?node-id=0-1&p=f&t
 - Criar tela de perfil
 - Implementar edição de perfil
 
-### Sprint 3 (Semana 5)
+### Sprint 3 (Semana 5) - OK
 
 - Criar sistema de eventos
 - Tela de criação de eventos
 - Listagem de eventos
 
-### Sprint 4 (Semana 7) / Feito para a  lista de desejos pessoal
+### Sprint 4 (Semana 7)
 
-- Implementar sugestões de presentes
-- Listar presentes no evento
-- Marcar presente como comprado
+- Implementar a sugestões de presentes nos eventos
+- Visitar perfil dos amigos 
 
 ### Sprint 5 (Semana 9)
 
@@ -91,3 +93,39 @@ https://www.figma.com/design/m9L6NqOqb86mtJ9M0yajCF/GiftHelper?node-id=0-1&p=f&t
 ### Sprint extra
 
 - Customização do avatar
+
+## Atualizações desde o último checkpoint
+
+Desde o último checkpoint, foram aplicados novos recursos e melhorias no projeto, principalmente nos módulos de autenticação, wishlist, amizades e eventos.
+
+### Recursos dos módulos anteriores aplicados
+
+- Utilizei React Native com Expo e Expo Router para organizar a navegação do aplicativo em rotas protegidas e públicas, separando telas autenticadas das telas de login e cadastro.
+
+- Utilizei services no frontend para centralizar as chamadas HTTP da aplicação, evitando chamadas diretas à API dentro dos componentes. Exemplos disso aparecem nos services de autenticação, gifts, amizades e eventos.
+
+- Utilizei hooks e contextos para gerenciar o estado de autenticação do usuário, como o controle de login, logout, armazenamento do token e definição do usuário autenticado.
+
+- Utilizei componentes reutilizáveis de interface, como `InputComponent`, `PressableComponent`, `TextComponent`, `TitleComponent`, `Loading`, `SelectModal` e `TextAreaComponent`, para manter consistência visual entre as telas.
+
+- Implementei o módulo de amizades, permitindo pesquisar usuários, enviar pedidos de amizade, aceitar convites e listar amigos.
+
+- Implementei o módulo de eventos, permitindo criar eventos, listar eventos, visualizar detalhes e convidar usuários para eventos.
+
+### Boas práticas para criação de componentes reutilizáveis aplicadas
+
+- Criei componentes com responsabilidade única. Por exemplo, `InputComponent` é responsável apenas pela entrada de texto, `PressableComponent` apenas por botões e `TextComponent` apenas por padronizar textos.
+
+- Reutilizei componentes existentes em diferentes telas para evitar duplicação de código. Os mesmos inputs, botões, textos e loaders são usados em telas de login, cadastro, wishlist, eventos e amizades.
+
+- Usei props para tornar os componentes flexíveis. Por exemplo, `InputComponent` recebe propriedades como `label`, `error`, `width`, `height`, `placeholder`, `borderError` e `backgroundColor`, permitindo uso em diferentes contextos.
+
+- Separei componentes visuais da lógica de API. As telas e componentes consomem funções dos services, enquanto as chamadas HTTP ficam centralizadas na camada de services.
+
+- Apliquei feedback visual para o usuário em ações assíncronas, usando loading e toast em operações como criação de presentes, criação de eventos, envio de convites e autenticação.
+
+- Usei componentes menores para compor interfaces maiores. Por exemplo, a área de amizades usa componentes específicos para busca, listagem de pedidos, itens de amigos e menu lateral.
+
+- Mantive o padrão de reutilização também no módulo de eventos, separando componentes como `EventItem`, `EventForm` e componentes relacionados ao convite de usuários.
+
+- Utilizei validações visuais nos componentes de formulário, exibindo mensagens de erro e bordas vermelhas nos campos inválidos para melhorar a experiência do usuário.
