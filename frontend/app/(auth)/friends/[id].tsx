@@ -1,5 +1,5 @@
 import BlankTemplate from "@/components/template/Blank";
-import GiftItem from "@/components/gift/GiftItem";
+import { FriendWishlistItem } from "@/components/friends/FriendWishlistItem";
 import ErrorComponent from "@/components/ui/Error";
 import Loading from "@/components/ui/Loading";
 import TextComponent from "@/components/ui/Text";
@@ -14,11 +14,14 @@ import { ScrollView, StyleSheet, View } from "react-native";
 export default function FriendProfileScreen() {
   const { id } = useLocalSearchParams();
   const friendIdParam = Array.isArray(id) ? id[0] : id;
-  const friendId = typeof friendIdParam === "string" ? Number(friendIdParam) : undefined;
+  const friendId =
+    typeof friendIdParam === "string" ? Number(friendIdParam) : undefined;
 
-  const [friendProfile, setFriendProfile] = useState<FriendProfileResponse | null>(null);
+  const [friendProfile, setFriendProfile] =
+    useState<FriendProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedGiftIds, setExpandedGiftIds] = useState<number[]>([]);
 
   useEffect(() => {
     if (friendId !== undefined && !Number.isNaN(friendId)) {
@@ -29,7 +32,8 @@ export default function FriendProfileScreen() {
           setFriendProfile(data);
           setError(null);
         } catch (err: any) {
-          const errorMessage = err.response?.data?.message || "Failed to load friend profile.";
+          const errorMessage =
+            err.response?.data?.message || "Failed to load friend profile.";
           setError(errorMessage);
           showToast(errorMessage, "danger");
         } finally {
@@ -76,7 +80,15 @@ export default function FriendProfileScreen() {
 
   const { user, wishlist } = friendProfile;
   const formatValue = (value?: string | number | null) =>
-    value === null || value === undefined || value === "" ? "Not informed" : String(value);
+    value === null || value === undefined || value === "" ? "-" : String(value);
+
+  const handleToggleGift = (giftId: number) => {
+    setExpandedGiftIds((currentGiftIds) =>
+      currentGiftIds.includes(giftId)
+        ? currentGiftIds.filter((currentGiftId) => currentGiftId !== giftId)
+        : [...currentGiftIds, giftId],
+    );
+  };
 
   return (
     <BlankTemplate>
@@ -84,8 +96,14 @@ export default function FriendProfileScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TitleComponent message={user.name} fontSize={24} />
 
+        <View style={styles.avatar}></View>
+
         <View style={styles.section}>
-          <TextComponent message="Personal Information" fontWeight="bold" fontSize={18} />
+          <TextComponent
+            message="Personal information"
+            fontWeight="bold"
+            fontSize={18}
+          />
           <View style={styles.infoRow}>
             <TextComponent message="Shirt size: " color="#B3B3B3" />
             <TextComponent message={formatValue(user.shirt_size)} />
@@ -111,40 +129,15 @@ export default function FriendProfileScreen() {
         <View style={styles.section}>
           <TextComponent message="Wishlist" fontWeight="bold" fontSize={18} />
           {wishlist.length === 0 ? (
-            <TextComponent message="No wishlist items found." color="#B3B3B3" />
+            <TextComponent message="No wishlist items found" color="#B3B3B3" />
           ) : (
             wishlist.map((gift: FriendProfileGift) => (
-              <View key={gift.id} style={styles.giftContainer}>
-                <GiftItem
-                  gift={{
-                    id: gift.id,
-                    name: gift.name,
-                    type: gift.type || "other",
-                  }}
-                />
-                <View style={styles.giftDetails}>
-                  <TextComponent
-                    message={`Price: ${formatValue(gift.price)}`}
-                    color="#B3B3B3"
-                    textAlign="left"
-                  />
-                  <TextComponent
-                    message={`Quantity: ${formatValue(gift.quantity)}`}
-                    color="#B3B3B3"
-                    textAlign="left"
-                  />
-                  <TextComponent
-                    message={`Description: ${formatValue(gift.description)}`}
-                    color="#B3B3B3"
-                    textAlign="left"
-                  />
-                  <TextComponent
-                    message={`Color: ${formatValue(gift.color)}`}
-                    color="#B3B3B3"
-                    textAlign="left"
-                  />
-                </View>
-              </View>
+              <FriendWishlistItem
+                key={gift.id}
+                gift={gift}
+                isExpanded={expandedGiftIds.includes(gift.id)}
+                onPress={() => handleToggleGift(gift.id)}
+              />
             ))
           )}
         </View>
@@ -154,6 +147,15 @@ export default function FriendProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  avatar: {
+    backgroundColor: "#F6BBC1",
+    height: 300,
+    width: 100,
+    marginTop: 50,
+    marginBottom: 50,
+    borderRadius: 100,
+  },
+
   scrollContent: {
     padding: 20,
     alignItems: "center",
@@ -170,14 +172,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 5,
-  },
-  giftContainer: {
-    gap: 6,
-  },
-  giftDetails: {
-    gap: 4,
-    marginBottom: 12,
-    paddingHorizontal: 4,
   },
   feedbackContainer: {
     flex: 1,
