@@ -6,6 +6,7 @@ use App\Http\Controllers\GiftController;
 use App\Http\Controllers\FriendshipController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventParticipantController;
+use App\Http\Controllers\UserController;
 
 
 Route::post('/register', [AuthController::class,'register']);
@@ -38,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/friends/{friendship}/accept', [FriendshipController::class, 'accept']);
     Route::get('/users/search', [FriendshipController::class, 'search']);
     Route::get('/friends', [FriendshipController::class, 'friends']);
+    Route::get('/users/{user}/profile', [UserController::class, 'showProfile']);
 
         Route::prefix('events')->group(function () {
         Route::get('/', [EventController::class, 'index']);

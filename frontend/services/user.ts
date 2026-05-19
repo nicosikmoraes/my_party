@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { FriendProfileResponse } from "@/types/user";
 
 type UpdateUserPayload = {
   shirt_size?: string;
@@ -23,4 +24,11 @@ export async function searchUsers(name: string) {
   } catch (error: any) {
     throw error;
   }
+}
+
+export async function getUserProfile(
+  userId: number
+): Promise<FriendProfileResponse> {
+  const response = await api.get(`/users/${userId}/profile`);
+  return response.data;
 }

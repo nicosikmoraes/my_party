@@ -106,7 +106,7 @@ export default function SideMenu({ visible, onClose }: Props) {
             <View>
               <TitleComponent message="Your Friends" fontSize={18} />
 
-              <FriendsList />
+              <FriendsList onFriendPress={onClose} />
             </View>
           </View>
         </Animated.View>

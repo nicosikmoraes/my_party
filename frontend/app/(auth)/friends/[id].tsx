@@ -1,0 +1,182 @@
+import BlankTemplate from "@/components/template/Blank";
+import { FriendWishlistItem } from "@/components/friends/FriendWishlistItem";
+import ErrorComponent from "@/components/ui/Error";
+import Loading from "@/components/ui/Loading";
+import TextComponent from "@/components/ui/Text";
+import TitleComponent from "@/components/ui/Title";
+import { getUserProfile } from "@/services/user";
+import { FriendProfileGift, FriendProfileResponse } from "@/types/user";
+import { showToast } from "@/utils/toast";
+import { Stack, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+
+export default function FriendProfileScreen() {
+  const { id } = useLocalSearchParams();
+  const friendIdParam = Array.isArray(id) ? id[0] : id;
+  const friendId =
+    typeof friendIdParam === "string" ? Number(friendIdParam) : undefined;
+
+  const [friendProfile, setFriendProfile] =
+    useState<FriendProfileResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedGiftIds, setExpandedGiftIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (friendId !== undefined && !Number.isNaN(friendId)) {
+      const fetchFriendProfile = async () => {
+        try {
+          setLoading(true);
+          const data = await getUserProfile(friendId);
+          setFriendProfile(data);
+          setError(null);
+        } catch (err: any) {
+          const errorMessage =
+            err.response?.data?.message || "Failed to load friend profile.";
+          setError(errorMessage);
+          showToast(errorMessage, "danger");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchFriendProfile();
+    } else {
+      setLoading(false);
+      setError("Friend ID not found.");
+      showToast("Friend ID not found.", "danger");
+    }
+  }, [friendId]);
+
+  if (loading) {
+    return (
+      <BlankTemplate>
+        <Loading visible={true} color="#E65C00" />
+      </BlankTemplate>
+    );
+  }
+
+  if (error) {
+    return (
+      <BlankTemplate>
+        <Stack.Screen options={{ title: "Error" }} />
+        <View style={styles.feedbackContainer}>
+          <ErrorComponent message={error} />
+        </View>
+      </BlankTemplate>
+    );
+  }
+
+  if (!friendProfile) {
+    return (
+      <BlankTemplate>
+        <Stack.Screen options={{ title: "Not Found" }} />
+        <View style={styles.feedbackContainer}>
+          <TextComponent message="Friend profile not found." color="#B3B3B3" />
+        </View>
+      </BlankTemplate>
+    );
+  }
+
+  const { user, wishlist } = friendProfile;
+  const formatValue = (value?: string | number | null) =>
+    value === null || value === undefined || value === "" ? "-" : String(value);
+
+  const handleToggleGift = (giftId: number) => {
+    setExpandedGiftIds((currentGiftIds) =>
+      currentGiftIds.includes(giftId)
+        ? currentGiftIds.filter((currentGiftId) => currentGiftId !== giftId)
+        : [...currentGiftIds, giftId],
+    );
+  };
+
+  return (
+    <BlankTemplate>
+      <Stack.Screen options={{ title: user.name }} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <TitleComponent message={user.name} fontSize={24} />
+
+        <View style={styles.avatar}></View>
+
+        <View style={styles.section}>
+          <TextComponent
+            message="Personal information"
+            fontWeight="bold"
+            fontSize={18}
+          />
+          <View style={styles.infoRow}>
+            <TextComponent message="Shirt size: " color="#B3B3B3" />
+            <TextComponent message={formatValue(user.shirt_size)} />
+          </View>
+          <View style={styles.infoRow}>
+            <TextComponent message="Shoe size: " color="#B3B3B3" />
+            <TextComponent message={formatValue(user.shoe_size)} />
+          </View>
+          <View style={styles.infoRow}>
+            <TextComponent message="Pants size: " color="#B3B3B3" />
+            <TextComponent message={formatValue(user.pants_size)} />
+          </View>
+          <View style={styles.infoRow}>
+            <TextComponent message="Ring size: " color="#B3B3B3" />
+            <TextComponent message={formatValue(user.ring_size)} />
+          </View>
+          <View style={styles.infoRow}>
+            <TextComponent message="Favorite color: " color="#B3B3B3" />
+            <TextComponent message={formatValue(user.prefered_color)} />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <TextComponent message="Wishlist" fontWeight="bold" fontSize={18} />
+          {wishlist.length === 0 ? (
+            <TextComponent message="No wishlist items found" color="#B3B3B3" />
+          ) : (
+            wishlist.map((gift: FriendProfileGift) => (
+              <FriendWishlistItem
+                key={gift.id}
+                gift={gift}
+                isExpanded={expandedGiftIds.includes(gift.id)}
+                onPress={() => handleToggleGift(gift.id)}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </BlankTemplate>
+  );
+}
+
+const styles = StyleSheet.create({
+  avatar: {
+    backgroundColor: "#F6BBC1",
+    height: 300,
+    width: 100,
+    marginTop: 50,
+    marginBottom: 50,
+    borderRadius: 100,
+  },
+
+  scrollContent: {
+    padding: 20,
+    alignItems: "center",
+  },
+  section: {
+    width: "100%",
+    backgroundColor: "#1A1A1A",
+    borderRadius: 8,
+    padding: 15,
+    marginTop: 20,
+    gap: 10,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 5,
+  },
+  feedbackContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+});

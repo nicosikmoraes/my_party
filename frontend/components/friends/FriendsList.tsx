@@ -7,7 +7,11 @@ import Loading from "../ui/Loading";
 import TextComponent from "../ui/Text";
 import FriendItem from "./FriendItem";
 
-export const FriendsList: React.FC = () => {
+type FriendsListProps = {
+  onFriendPress?: () => void;
+};
+
+export const FriendsList: React.FC<FriendsListProps> = ({ onFriendPress }) => {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -18,7 +22,7 @@ export const FriendsList: React.FC = () => {
         const data = await getFriends();
         setFriends(data);
       } catch (error) {
-        showToast("Falha ao carregar amigos.", "danger");
+        showToast("Failed to load friends.", "danger");
       } finally {
         setLoading(false);
       }
@@ -38,7 +42,7 @@ export const FriendsList: React.FC = () => {
   if (friends.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <TextComponent message="no friends yet" opacity={0.7} />
+        <TextComponent message="No friends yet" opacity={0.7} />
       </View>
     );
   }
@@ -47,7 +51,9 @@ export const FriendsList: React.FC = () => {
     <View style={{ marginTop: 10 }}>
       <FlatList
         data={friends}
-        renderItem={({ item }) => <FriendItem friend={item} />}
+        renderItem={({ item }) => (
+          <FriendItem friend={item} onNavigate={onFriendPress} />
+        )}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
       />
