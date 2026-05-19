@@ -76,6 +76,21 @@ class User extends Authenticatable
         });
     }
 
+    public function isFriendsWith(User $user): bool
+    {
+        return Friendship::where('status', 'accepted')
+            ->where(function ($query) use ($user) {
+                $query->where(function ($query) use ($user) {
+                    $query->where('sender_id', $this->id)
+                        ->where('receiver_id', $user->id);
+                })->orWhere(function ($query) use ($user) {
+                    $query->where('sender_id', $user->id)
+                        ->where('receiver_id', $this->id);
+                });
+            })
+            ->exists();
+    }
+
      public function createdEvents(): HasMany
     {
         return $this->hasMany(Event::class, 'created_by_user_id');
