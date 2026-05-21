@@ -1,97 +1,303 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
 import Loading from "@/components/ui/Loading";
+import TextComponent from "@/components/ui/Text";
+import { Asset } from "expo-asset";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Platform, StyleSheet, View } from "react-native";
+
+const DEFAULT_AVATAR_MODEL = require("../../assets/models/cabeca.glb");
 
 type Avatar3DProps = {
   avatarUrl?: string | null;
+  width?: number;
+  height?: number;
   size?: number;
   backgroundColor?: string;
 };
 
-const DEFAULT_PARTS = {
-  skin: "#E8B29A",
-  shirt: "#E65C00",
-  pants: "#243044",
-  shoe: "#101820",
-};
+function getThreeModules() {
+  try {
+    return {
+      GLView: require("expo-gl").GLView,
+      GLTFLoader: require("three-stdlib").GLTFLoader,
+      Renderer: require("expo-three").Renderer,
+      THREE: require("three"),
+    };
+  } catch (error) {
+    console.log("Avatar 3D modules error:", error);
+    return null;
+  }
+}
+
+async function getDefaultAvatarUri() {
+  const asset = Asset.fromModule(DEFAULT_AVATAR_MODEL);
+
+  await asset.downloadAsync();
+
+  console.log("Avatar asset:", {
+    uri: asset.uri,
+    localUri: asset.localUri,
+    downloaded: asset.downloaded,
+    name: asset.name,
+    type: asset.type,
+  });
+
+  return asset.uri;
+}
+
+function disposeModel(model: any) {
+  model.traverse((object: any) => {
+    if (object.geometry) {
+      object.geometry.dispose();
+    }
+
+    const material = object.material;
+
+    if (Array.isArray(material)) {
+      material.forEach((currentMaterial) => currentMaterial.dispose());
+    } else if (material) {
+      material.dispose();
+    }
+  });
+}
 
 export default function Avatar3D({
   avatarUrl,
-  size = 220,
+  width,
+  height,
+  size = 300,
   backgroundColor = "#0F0F0F",
 }: Avatar3DProps) {
   const [loading, setLoading] = useState(true);
-  const rotation = useRef(new Animated.Value(0)).current;
+  const [loadError, setLoadError] = useState(false);
+
+  const animationFrameRef = useRef<number | null>(null);
+  const modelRef = useRef<any>(null);
+  const isMountedRef = useRef(true);
+  const loadIdRef = useRef(0);
+
+  const modelSource = useMemo(() => avatarUrl?.trim() || null, [avatarUrl]);
+  const avatarWidth = width ?? size;
+  const avatarHeight = height ?? size;
+  const threeModules = useMemo(() => getThreeModules(), []);
+
+  const stopAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
-    const loadingTimeout = setTimeout(() => setLoading(false), 150);
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(rotation, {
-          toValue: 1,
-          duration: 2400,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(rotation, {
-          toValue: 0,
-          duration: 2400,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
+    if (!threeModules) {
+      setLoading(false);
+      setLoadError(true);
+    }
+  }, [threeModules]);
 
-    animation.start();
-
+  useEffect(() => {
     return () => {
-      clearTimeout(loadingTimeout);
-      animation.stop();
-    };
-  }, [rotation, avatarUrl]);
+      isMountedRef.current = false;
+      stopAnimation();
 
-  const rotateY = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["-12deg", "12deg"],
-  });
+      if (modelRef.current) {
+        disposeModel(modelRef.current);
+        modelRef.current = null;
+      }
+    };
+  }, [stopAnimation]);
+
+  const handleContextCreate = useCallback(
+    async (gl: any) => {
+      const currentLoadId = loadIdRef.current + 1;
+
+      loadIdRef.current = currentLoadId;
+      setLoading(true);
+      setLoadError(false);
+      stopAnimation();
+
+      if (modelRef.current) {
+        disposeModel(modelRef.current);
+        modelRef.current = null;
+      }
+
+      if (!threeModules) {
+        setLoading(false);
+        setLoadError(true);
+        return;
+      }
+
+      const { GLTFLoader, Renderer, THREE } = threeModules;
+
+      const renderer = new Renderer({ gl });
+      renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
+      renderer.setClearColor(backgroundColor, 1);
+
+      const scene = new THREE.Scene();
+
+      const camera = new THREE.PerspectiveCamera(
+        35,
+        gl.drawingBufferWidth / gl.drawingBufferHeight,
+        0.1,
+        1000,
+      );
+
+      camera.position.set(0, 0.2, 4);
+      camera.lookAt(0, 0, 0);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
+
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+      keyLight.position.set(2, 4, 4);
+
+      const fillLight = new THREE.DirectionalLight(0xfff0dc, 0.9);
+      fillLight.position.set(-3, 2, 2);
+
+      scene.add(ambientLight);
+      scene.add(keyLight);
+      scene.add(fillLight);
+
+      const renderScene = () => {
+        renderer.render(scene, camera);
+
+        if (gl.endFrameEXP) {
+          gl.endFrameEXP();
+        }
+      };
+
+      try {
+        const loader = new GLTFLoader();
+
+        let modelUri = modelSource;
+
+        if (!modelUri) {
+          modelUri = await getDefaultAvatarUri();
+        }
+
+        if (!modelUri) {
+          throw new Error("Avatar model URI not found");
+        }
+
+        console.log("Loading 3D avatar model:", modelUri);
+
+        const gltf = await loader.loadAsync(modelUri);
+        const model = gltf.scene;
+
+        if (!isMountedRef.current || loadIdRef.current !== currentLoadId) {
+          disposeModel(model);
+          return;
+        }
+
+        const bounds = new THREE.Box3().setFromObject(model);
+        const sizeVector = new THREE.Vector3();
+        const center = new THREE.Vector3();
+
+        bounds.getSize(sizeVector);
+        bounds.getCenter(center);
+
+        console.log("Avatar bounds:", {
+          size: {
+            x: sizeVector.x,
+            y: sizeVector.y,
+            z: sizeVector.z,
+          },
+          center: {
+            x: center.x,
+            y: center.y,
+            z: center.z,
+          },
+        });
+
+        const maxAxis = Math.max(sizeVector.x, sizeVector.y, sizeVector.z);
+        const scale = maxAxis > 0 ? 2.2 / maxAxis : 1;
+
+        const avatarGroup = new THREE.Group();
+
+        model.position.set(-center.x, -center.y, -center.z);
+
+        avatarGroup.add(model);
+        avatarGroup.scale.setScalar(scale);
+        avatarGroup.position.set(0, 0, 0);
+
+        scene.add(avatarGroup);
+        modelRef.current = avatarGroup;
+
+        camera.position.set(0, 0.2, 4);
+        camera.lookAt(0, 0, 0);
+
+        if (isMountedRef.current) {
+          setLoading(false);
+          setLoadError(false);
+        }
+
+        const animate = () => {
+          if (!isMountedRef.current || loadIdRef.current !== currentLoadId) {
+            return;
+          }
+
+          avatarGroup.rotation.y += 0.006;
+          renderScene();
+
+          animationFrameRef.current = requestAnimationFrame(animate);
+        };
+
+        animate();
+      } catch (error) {
+        console.log("Avatar 3D load error:", error);
+
+        if (isMountedRef.current) {
+          setLoading(false);
+          setLoadError(true);
+        }
+
+        renderScene();
+      }
+    },
+    [backgroundColor, modelSource, stopAnimation, threeModules],
+  );
+
+  const GLView = threeModules?.GLView;
 
   return (
     <View
       style={[
         styles.container,
-        { width: size, height: size, backgroundColor },
+        {
+          width: avatarWidth,
+          height: avatarHeight,
+          backgroundColor,
+        },
       ]}
     >
-      <Animated.View
-        style={[
-          styles.avatar,
-          {
-            transform: [{ perspective: 700 }, { rotateY }],
-          },
-        ]}
-      >
-        <View style={[styles.head, { backgroundColor: DEFAULT_PARTS.skin }]}>
-          <View style={styles.eyeRow}>
-            <View style={styles.eye} />
-            <View style={styles.eye} />
-          </View>
-        </View>
-        <View style={styles.bodyRow}>
-          <View style={[styles.arm, { backgroundColor: DEFAULT_PARTS.skin }]} />
-          <View style={[styles.torso, { backgroundColor: DEFAULT_PARTS.shirt }]} />
-          <View style={[styles.arm, { backgroundColor: DEFAULT_PARTS.skin }]} />
-        </View>
-        <View style={styles.legsRow}>
-          <View style={[styles.leg, { backgroundColor: DEFAULT_PARTS.pants }]} />
-          <View style={[styles.leg, { backgroundColor: DEFAULT_PARTS.pants }]} />
-        </View>
-        <View style={styles.feetRow}>
-          <View style={[styles.foot, { backgroundColor: DEFAULT_PARTS.shoe }]} />
-          <View style={[styles.foot, { backgroundColor: DEFAULT_PARTS.shoe }]} />
-        </View>
-      </Animated.View>
+      {GLView ? (
+        <GLView
+          key={modelSource || "default-avatar"}
+          style={styles.glView}
+          onContextCreate={handleContextCreate}
+        />
+      ) : null}
 
       <Loading visible={loading} color="#E65C00" />
+
+      {loadError ? (
+        <View style={styles.fallback}>
+          <TextComponent
+            message={
+              Platform.OS === "web"
+                ? "3D avatar preview is available on mobile"
+                : "Avatar model unavailable"
+            }
+            color="#B3B3B3"
+            fontSize={12}
+            textAlign="center"
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -99,75 +305,26 @@ export default function Avatar3D({
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
+    backgroundColor: "#0F0F0F",
     borderRadius: 8,
     justifyContent: "center",
     overflow: "hidden",
     position: "relative",
   },
-  avatar: {
+
+  glView: {
+    height: "100%",
+    width: "100%",
+  },
+
+  fallback: {
     alignItems: "center",
-    height: "86%",
+    bottom: 0,
     justifyContent: "center",
-    width: "70%",
-  },
-  head: {
-    alignItems: "center",
-    borderRadius: 42,
-    elevation: 4,
-    height: 68,
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.25,
-    shadowRadius: 9,
-    width: 68,
-  },
-  eyeRow: {
-    flexDirection: "row",
-    gap: 14,
-    marginTop: 8,
-  },
-  eye: {
-    backgroundColor: "#101820",
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  bodyRow: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: 8,
-    marginTop: -2,
-  },
-  arm: {
-    borderRadius: 16,
-    height: 78,
-    marginTop: 8,
-    width: 18,
-  },
-  torso: {
-    borderRadius: 20,
-    height: 88,
-    width: 70,
-  },
-  legsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: -2,
-  },
-  leg: {
-    borderRadius: 14,
-    height: 58,
-    width: 24,
-  },
-  feetRow: {
-    flexDirection: "row",
-    gap: 14,
-    marginTop: -2,
-  },
-  foot: {
-    borderRadius: 10,
-    height: 14,
-    width: 30,
+    left: 0,
+    padding: 8,
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
 });
