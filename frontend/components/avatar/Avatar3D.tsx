@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { PanResponder, Platform, StyleSheet, View } from "react-native";
 
 const DEFAULT_AVATAR_MODEL = require("../../assets/models/cabeca.glb");
 
@@ -78,6 +78,8 @@ export default function Avatar3D({
 
   const animationFrameRef = useRef<number | null>(null);
   const modelRef = useRef<any>(null);
+  const avatarGroupRef = useRef<any>(null);
+  const rotationRef = useRef({ x: 0, y: 0 });
   const isMountedRef = useRef(true);
   const loadIdRef = useRef(0);
 
@@ -85,6 +87,44 @@ export default function Avatar3D({
   const avatarWidth = width ?? size;
   const avatarHeight = height ?? size;
   const threeModules = useMemo(() => getThreeModules(), []);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => {
+          if (avatarGroupRef.current) {
+            rotationRef.current.y = avatarGroupRef.current.rotation.y;
+            rotationRef.current.x = avatarGroupRef.current.rotation.x;
+          }
+        },
+        onPanResponderMove: (_event, gestureState) => {
+          if (avatarGroupRef.current) {
+            const newRotationY = rotationRef.current.y + gestureState.dx * 0.01;
+            let newRotationX = rotationRef.current.x + gestureState.dy * 0.01;
+
+            newRotationX = Math.max(-0.6, Math.min(0.6, newRotationX));
+
+            avatarGroupRef.current.rotation.y = newRotationY;
+            avatarGroupRef.current.rotation.x = newRotationX;
+          }
+        },
+        onPanResponderRelease: () => {
+          if (avatarGroupRef.current) {
+            rotationRef.current.y = avatarGroupRef.current.rotation.y;
+            rotationRef.current.x = avatarGroupRef.current.rotation.x;
+          }
+        },
+        onPanResponderTerminate: () => {
+          if (avatarGroupRef.current) {
+            rotationRef.current.y = avatarGroupRef.current.rotation.y;
+            rotationRef.current.x = avatarGroupRef.current.rotation.x;
+          }
+        },
+      }),
+    [],
+  );
 
   const stopAnimation = useCallback(() => {
     if (animationFrameRef.current !== null) {
@@ -108,6 +148,7 @@ export default function Avatar3D({
       if (modelRef.current) {
         disposeModel(modelRef.current);
         modelRef.current = null;
+        avatarGroupRef.current = null;
       }
     };
   }, [stopAnimation]);
@@ -124,6 +165,7 @@ export default function Avatar3D({
       if (modelRef.current) {
         disposeModel(modelRef.current);
         modelRef.current = null;
+        avatarGroupRef.current = null;
       }
 
       if (!threeModules) {
@@ -223,9 +265,12 @@ export default function Avatar3D({
         avatarGroup.add(model);
         avatarGroup.scale.setScalar(scale);
         avatarGroup.position.set(0, 0, 0);
+        avatarGroup.rotation.x = rotationRef.current.x;
+        avatarGroup.rotation.y = rotationRef.current.y;
 
         scene.add(avatarGroup);
         modelRef.current = avatarGroup;
+        avatarGroupRef.current = avatarGroup;
 
         camera.position.set(0, 0.2, 4);
         camera.lookAt(0, 0, 0);
@@ -240,7 +285,6 @@ export default function Avatar3D({
             return;
           }
 
-          avatarGroup.rotation.y += 0.006;
           renderScene();
 
           animationFrameRef.current = requestAnimationFrame(animate);
@@ -265,6 +309,7 @@ export default function Avatar3D({
 
   return (
     <View
+      {...panResponder.panHandlers}
       style={[
         styles.container,
         {
