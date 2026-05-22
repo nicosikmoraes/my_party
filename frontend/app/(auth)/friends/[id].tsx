@@ -97,7 +97,7 @@ export default function FriendProfileScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TitleComponent message={user.name} fontSize={24} />
 
-        <Avatar3D avatarUrl={user.avatar_url} size={220} />
+        <Avatar3D avatarUrl={user.avatar_url} size={340} />
 
         <View style={styles.section}>
           <TextComponent

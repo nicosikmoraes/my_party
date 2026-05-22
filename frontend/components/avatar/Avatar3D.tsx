@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { PanResponder, Platform, StyleSheet, View } from "react-native";
 
-const DEFAULT_AVATAR_MODEL = require("../../assets/models/cabeca.glb");
+const DEFAULT_AVATAR_MODEL = require("../../assets/models/avatar.glb");
 
 type Avatar3DProps = {
   avatarUrl?: string | null;
@@ -79,7 +79,7 @@ export default function Avatar3D({
   const animationFrameRef = useRef<number | null>(null);
   const modelRef = useRef<any>(null);
   const avatarGroupRef = useRef<any>(null);
-  const rotationRef = useRef({ x: 0, y: 0 });
+  const rotationRef = useRef({ x: 0, y: -Math.PI / 2 });
   const isMountedRef = useRef(true);
   const loadIdRef = useRef(0);
 

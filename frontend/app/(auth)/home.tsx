@@ -36,7 +36,7 @@ export default function Home() {
             </View>
           </View>
 
-          <Avatar3D avatarUrl={user?.avatar_url} size={220} />
+          <Avatar3D avatarUrl={user?.avatar_url} size={340} />
         </View>
 
         <PersonalInformations />
