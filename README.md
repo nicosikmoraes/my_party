@@ -21,7 +21,9 @@ Além disso, o sistema permite a criação de eventos onde os participantes pode
 - [ ] Adicionar sugestões de presentes
 - [ ] Visualizar sugestões de presentes
 - [ ] Marcar presente como comprado (modo aniversário)
-- [ ] Visitar o perfil do seus amigos
+- [x] Visitar o perfil do seus amigos
+- [x] Avatares (Primeira versão)
+- [ ] Customizar avatar
 
 ### Tipos de evento
 
@@ -40,9 +42,9 @@ O sistema contará com dois tipos de eventos:
 
 ### Funcionalidades futuras
 
-- [ ] Avatar dos usuários
+- [x] Avatar dos usuários
 - [ ] Sistema de sorteio automático para amigo secreto
-- [ ] Customização do avatar
+- [x] Customização do avatar
 
 ## Modelagem do banco
 
@@ -83,12 +85,13 @@ https://youtube.com/shorts/ezpm__sjcHc
 
 ### Sprint 4 (Semana 7)
 
-- Implementar a sugestões de presentes nos eventos
+- Primeira versão dos avatares
 - Visitar perfil dos amigos 
 
 ### Sprint 5 (Semana 9)
 
-- Impletação do avatar
+- Sugestões de presentes em eventos
+- Criação de testes
 - Sorteio automático do amigo secreto
 
 ### Sprint extra
