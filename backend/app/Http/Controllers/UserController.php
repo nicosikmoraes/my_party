@@ -43,6 +43,7 @@ class UserController extends Controller
                 'pants_size' => $user->pants_size,
                 'ring_size' => $user->ring_size,
                 'prefered_color' => $user->preferred_color,
+                'avatar_url' => $user->avatar_url,
             ],
             'wishlist' => $gifts,
         ]);

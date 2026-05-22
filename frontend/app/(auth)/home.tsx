@@ -1,14 +1,17 @@
+import Avatar3D from "@/components/avatar/Avatar3D";
 import PersonalInformations from "@/components/home/PersonalInformations";
 import Wishlist from "@/components/home/Wishlist";
 import SideMenu from "@/components/menu/SideMenu";
 import BlankTemplate from "@/components/template/Blank";
 import IconButton from "@/components/ui/PressableIcon";
 import TitleComponent from "@/components/ui/Title";
+import { useAuth } from "@/hooks/useAuth";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 export default function Home() {
+  const { user } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
 
   return (
@@ -33,7 +36,7 @@ export default function Home() {
             </View>
           </View>
 
-          <View style={styles.avatar}></View>
+          <Avatar3D avatarUrl={user?.avatar_url} size={340} />
         </View>
 
         <PersonalInformations />
@@ -47,18 +50,10 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    backgroundColor: "#F6BBC1",
-    height: 300,
-    width: 100,
-    marginTop: 50,
-    marginBottom: 50,
-    borderRadius: 100,
-  },
-
   avatar_container: {
     display: "flex",
     alignItems: "center",
+    gap: 50,
   },
 
   person_informations_container: {

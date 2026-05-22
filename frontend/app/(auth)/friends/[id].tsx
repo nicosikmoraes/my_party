@@ -1,3 +1,4 @@
+import Avatar3D from "@/components/avatar/Avatar3D";
 import BlankTemplate from "@/components/template/Blank";
 import { FriendWishlistItem } from "@/components/friends/FriendWishlistItem";
 import ErrorComponent from "@/components/ui/Error";
@@ -96,7 +97,7 @@ export default function FriendProfileScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TitleComponent message={user.name} fontSize={24} />
 
-        <View style={styles.avatar}></View>
+        <Avatar3D avatarUrl={user.avatar_url} size={340} />
 
         <View style={styles.section}>
           <TextComponent
@@ -147,25 +148,16 @@ export default function FriendProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    backgroundColor: "#F6BBC1",
-    height: 300,
-    width: 100,
-    marginTop: 50,
-    marginBottom: 50,
-    borderRadius: 100,
-  },
-
   scrollContent: {
     padding: 20,
     alignItems: "center",
+    gap: 30,
   },
   section: {
     width: "100%",
     backgroundColor: "#1A1A1A",
     borderRadius: 8,
     padding: 15,
-    marginTop: 20,
     gap: 10,
   },
   infoRow: {

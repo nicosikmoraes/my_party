@@ -27,7 +27,8 @@ class User extends Authenticatable
         'shoe_size',
         'pants_size',
         'ring_size',
-        'preferred_color'
+        'preferred_color',
+        'avatar_url'
     ];
 
     protected $hidden = [
