@@ -4,7 +4,6 @@ import Wishlist from "@/components/home/Wishlist";
 import SideMenu from "@/components/menu/SideMenu";
 import BlankTemplate from "@/components/template/Blank";
 import IconButton from "@/components/ui/PressableIcon";
-import PressableComponent from "@/components/ui/Pressable";
 import TitleComponent from "@/components/ui/Title";
 import { useAuth } from "@/hooks/useAuth";
 import { getAvatarCustomization } from "@/services/avatarCustomizationService";
@@ -65,12 +64,8 @@ export default function Home() {
             shirtColor={avatarCustomization?.shirt_color || "#E65C00"}
             pantsColor={avatarCustomization?.pants_color || "#333333"}
             shoesColor={avatarCustomization?.shoes_color || "#111111"}
-          />
-
-          <PressableComponent
-            message="Customize Avatar"
+            showLoadingBackground={false}
             onPress={() => router.push("/avatar/customize")}
-            width="100%"
           />
         </View>
 
@@ -88,7 +83,7 @@ const styles = StyleSheet.create({
   avatar_container: {
     display: "flex",
     alignItems: "center",
-    gap: 50,
+    gap: 24,
   },
 
   person_informations_container: {
