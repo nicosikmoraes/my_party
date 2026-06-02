@@ -6,13 +6,33 @@ import BlankTemplate from "@/components/template/Blank";
 import IconButton from "@/components/ui/PressableIcon";
 import TitleComponent from "@/components/ui/Title";
 import { useAuth } from "@/hooks/useAuth";
+import { getAvatarCustomization } from "@/services/avatarCustomizationService";
+import { AvatarCustomization } from "@/types/avatar";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 export default function Home() {
   const { user } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
+  const [avatarCustomization, setAvatarCustomization] =
+    useState<AvatarCustomization | null>(null);
+
+  const fetchAvatarData = useCallback(async () => {
+    try {
+      const data = await getAvatarCustomization();
+      setAvatarCustomization(data);
+    } catch (error) {
+      console.error("Failed to load avatar customization for home screen", error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAvatarData();
+    }, [fetchAvatarData]),
+  );
 
   return (
     <BlankTemplate>
@@ -36,7 +56,17 @@ export default function Home() {
             </View>
           </View>
 
-          <Avatar3D avatarUrl={user?.avatar_url} size={340} />
+          <Avatar3D
+            avatarUrl={user?.avatar_url}
+            size={340}
+            skinColor={avatarCustomization?.skin_color || "#F2C6A0"}
+            hairColor={avatarCustomization?.hair_color || "#2B1A10"}
+            shirtColor={avatarCustomization?.shirt_color || "#E65C00"}
+            pantsColor={avatarCustomization?.pants_color || "#333333"}
+            shoesColor={avatarCustomization?.shoes_color || "#111111"}
+            showLoadingBackground={false}
+            onPress={() => router.push("/avatar/customize")}
+          />
         </View>
 
         <PersonalInformations />
@@ -53,7 +83,7 @@ const styles = StyleSheet.create({
   avatar_container: {
     display: "flex",
     alignItems: "center",
-    gap: 50,
+    gap: 24,
   },
 
   person_informations_container: {

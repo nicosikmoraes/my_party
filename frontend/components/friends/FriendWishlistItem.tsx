@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 
-if (Platform.OS === "android") {
+if (Platform.OS === "android" && !(global as any).nativeFabricUIManager) {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
   }
