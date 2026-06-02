@@ -11,6 +11,7 @@ use Laravel\Sanctum\HasApiTokens;
 use App\Models\Friendship;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\Event;
 use App\Models\EventParticipant;
 
@@ -107,5 +108,10 @@ class User extends Authenticatable
         return $this->belongsToMany(Event::class, 'event_participants')
                     ->withPivot('is_accepted')
                     ->withTimestamps();
+    }
+
+    public function avatarCustomization(): HasOne
+    {
+        return $this->hasOne(AvatarCustomization::class);
     }
 }

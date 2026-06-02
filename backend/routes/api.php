@@ -7,6 +7,7 @@ use App\Http\Controllers\FriendshipController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventParticipantController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AvatarCustomizationController;
 
 
 Route::post('/register', [AuthController::class,'register']);
@@ -29,6 +30,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::put('/user/update', [AuthController::class,'update']);
+
+    Route::get('/avatar-customization', [AvatarCustomizationController::class, 'show']);
+    Route::put('/avatar-customization', [AvatarCustomizationController::class, 'update']);
 
     Route::post('/gifts/create', [GiftController::class, 'store']);
     Route::get('/gifts', [GiftController::class, 'userGifts']);
