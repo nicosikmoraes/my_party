@@ -97,7 +97,15 @@ export default function FriendProfileScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TitleComponent message={user.name} fontSize={24} />
 
-        <Avatar3D avatarUrl={user.avatar_url} size={340} />
+        <Avatar3D
+          avatarUrl={user.avatar_url}
+          size={340}
+          skinColor={user.avatar_customization?.skin_color || "#F2C6A0"}
+          hairColor={user.avatar_customization?.hair_color || "#2B1A10"}
+          shirtColor={user.avatar_customization?.shirt_color || "#E65C00"}
+          pantsColor={user.avatar_customization?.pants_color || "#333333"}
+          shoesColor={user.avatar_customization?.shoes_color || "#111111"}
+        />
 
         <View style={styles.section}>
           <TextComponent

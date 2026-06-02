@@ -1,3 +1,5 @@
+import type { AvatarCustomization } from "@/types/avatar";
+
 export interface User {
   id: number;
   name: string;
@@ -8,13 +10,13 @@ export interface User {
 export type FriendProfileUser = {
   id: number;
   name: string;
-  email?: string;
   shirt_size?: string | null;
   shoe_size?: number | null;
   pants_size?: number | null;
   ring_size?: number | null;
   prefered_color?: string | null;
   avatar_url?: string | null;
+  avatar_customization?: AvatarCustomization | null;
 };
 
 export type FriendProfileGift = {
