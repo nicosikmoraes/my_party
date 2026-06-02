@@ -18,7 +18,28 @@ type Avatar3DProps = {
   height?: number;
   size?: number;
   backgroundColor?: string;
+  skinColor?: string;
+  hairColor?: string;
+  shirtColor?: string;
+  pantsColor?: string;
+  shoesColor?: string;
 };
+
+type AvatarColorProps = Pick<
+  Avatar3DProps,
+  "skinColor" | "hairColor" | "shirtColor" | "pantsColor" | "shoesColor"
+>;
+
+const AVATAR_PART_KEYWORDS = [
+  {
+    colorKey: "skinColor",
+    keywords: ["skin", "head", "face", "arm", "hand", "neck"],
+  },
+  { colorKey: "hairColor", keywords: ["hair"] },
+  { colorKey: "shirtColor", keywords: ["shirt", "body", "torso"] },
+  { colorKey: "pantsColor", keywords: ["pants", "leg"] },
+  { colorKey: "shoesColor", keywords: ["shoe", "shoes", "foot"] },
+] as const;
 
 function getThreeModules() {
   try {
@@ -66,12 +87,97 @@ function disposeModel(model: any) {
   });
 }
 
+function getMatchingAvatarColor(
+  names: Array<string | undefined>,
+  colors: AvatarColorProps,
+) {
+  const normalizedNames = names
+    .filter(Boolean)
+    .map((name) => String(name).toLowerCase());
+
+  for (const part of AVATAR_PART_KEYWORDS) {
+    const color = colors[part.colorKey];
+
+    if (
+      color &&
+      normalizedNames.some((name) =>
+        part.keywords.some((keyword) => name.includes(keyword)),
+      )
+    ) {
+      return color;
+    }
+  }
+
+  return undefined;
+}
+
+function cloneMaterialWithColor(material: any, color: string, threeRuntime: any) {
+  if (!material?.clone) {
+    return material;
+  }
+
+  const clonedMaterial = material.clone();
+
+  if (clonedMaterial.color) {
+    try {
+      clonedMaterial.color.copy(new threeRuntime.Color(color));
+    } catch {
+      return material;
+    }
+  }
+
+  return clonedMaterial;
+}
+
+function applyAvatarColors(
+  model: any,
+  colors: AvatarColorProps,
+  threeRuntime: any,
+) {
+  model.traverse((object: any) => {
+    if (!object?.isMesh || !object.material) {
+      return;
+    }
+
+    const meshColor = getMatchingAvatarColor([object.name], colors);
+
+    if (Array.isArray(object.material)) {
+      object.material = object.material.map((material: any) => {
+        const materialColor =
+          meshColor || getMatchingAvatarColor([material?.name], colors);
+
+        return materialColor
+          ? cloneMaterialWithColor(material, materialColor, threeRuntime)
+          : material;
+      });
+
+      return;
+    }
+
+    const materialColor =
+      meshColor || getMatchingAvatarColor([object.material?.name], colors);
+
+    if (materialColor) {
+      object.material = cloneMaterialWithColor(
+        object.material,
+        materialColor,
+        threeRuntime,
+      );
+    }
+  });
+}
+
 export default function Avatar3D({
   avatarUrl,
   width,
   height,
   size = 300,
   backgroundColor = "#0F0F0F",
+  skinColor,
+  hairColor,
+  shirtColor,
+  pantsColor,
+  shoesColor,
 }: Avatar3DProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -174,15 +280,15 @@ export default function Avatar3D({
         return;
       }
 
-      const { GLTFLoader, Renderer, THREE } = threeModules;
+      const { GLTFLoader, Renderer, THREE: ThreeRuntime } = threeModules;
 
       const renderer = new Renderer({ gl });
       renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight);
       renderer.setClearColor(backgroundColor, 1);
 
-      const scene = new THREE.Scene();
+      const scene = new ThreeRuntime.Scene();
 
-      const camera = new THREE.PerspectiveCamera(
+      const camera = new ThreeRuntime.PerspectiveCamera(
         35,
         gl.drawingBufferWidth / gl.drawingBufferHeight,
         0.1,
@@ -192,12 +298,12 @@ export default function Avatar3D({
       camera.position.set(0, 0.2, 4);
       camera.lookAt(0, 0, 0);
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
+      const ambientLight = new ThreeRuntime.AmbientLight(0xffffff, 1.6);
 
-      const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+      const keyLight = new ThreeRuntime.DirectionalLight(0xffffff, 1.8);
       keyLight.position.set(2, 4, 4);
 
-      const fillLight = new THREE.DirectionalLight(0xfff0dc, 0.9);
+      const fillLight = new ThreeRuntime.DirectionalLight(0xfff0dc, 0.9);
       fillLight.position.set(-3, 2, 2);
 
       scene.add(ambientLight);
@@ -229,15 +335,26 @@ export default function Avatar3D({
 
         const gltf = await loader.loadAsync(modelUri);
         const model = gltf.scene;
+        applyAvatarColors(
+          model,
+          {
+            skinColor,
+            hairColor,
+            shirtColor,
+            pantsColor,
+            shoesColor,
+          },
+          ThreeRuntime,
+        );
 
         if (!isMountedRef.current || loadIdRef.current !== currentLoadId) {
           disposeModel(model);
           return;
         }
 
-        const bounds = new THREE.Box3().setFromObject(model);
-        const sizeVector = new THREE.Vector3();
-        const center = new THREE.Vector3();
+        const bounds = new ThreeRuntime.Box3().setFromObject(model);
+        const sizeVector = new ThreeRuntime.Vector3();
+        const center = new ThreeRuntime.Vector3();
 
         bounds.getSize(sizeVector);
         bounds.getCenter(center);
@@ -258,7 +375,7 @@ export default function Avatar3D({
         const maxAxis = Math.max(sizeVector.x, sizeVector.y, sizeVector.z);
         const scale = maxAxis > 0 ? 2.2 / maxAxis : 1;
 
-        const avatarGroup = new THREE.Group();
+        const avatarGroup = new ThreeRuntime.Group();
 
         model.position.set(-center.x, -center.y, -center.z);
 
@@ -302,10 +419,28 @@ export default function Avatar3D({
         renderScene();
       }
     },
-    [backgroundColor, modelSource, stopAnimation, threeModules],
+    [
+      backgroundColor,
+      hairColor,
+      modelSource,
+      pantsColor,
+      shirtColor,
+      shoesColor,
+      skinColor,
+      stopAnimation,
+      threeModules,
+    ],
   );
 
   const GLView = threeModules?.GLView;
+  const glViewKey = [
+    modelSource || "default-avatar",
+    skinColor || "",
+    hairColor || "",
+    shirtColor || "",
+    pantsColor || "",
+    shoesColor || "",
+  ].join(":");
 
   return (
     <View
@@ -321,7 +456,7 @@ export default function Avatar3D({
     >
       {GLView ? (
         <GLView
-          key={modelSource || "default-avatar"}
+          key={glViewKey}
           style={styles.glView}
           onContextCreate={handleContextCreate}
         />
