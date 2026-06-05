@@ -9,22 +9,43 @@ import {
     AvatarPartSelector,
 } from "@/components/avatar/AvatarPartSelector";
 import BlankTemplate from "@/components/template/Blank";
+import SelectModal from "@/components/ui/ModalSelect";
 import PressableComponent from "@/components/ui/Pressable";
 import TextComponent from "@/components/ui/Text";
 import TitleComponent from "@/components/ui/Title";
 import {
+    AVATAR_DEFAULT_CUSTOMIZATION,
+    AVATAR_ITEM_OPTIONS,
+} from "@/constants/avatarItems";
+import {
     getAvatarCustomization,
     updateAvatarCustomization,
 } from "@/services/avatarCustomizationService";
+import type {
+    AvatarItemPart,
+    UpdateAvatarCustomizationPayload,
+} from "@/types/avatar";
 import { showToast } from "@/utils/toast";
 
-const defaultCustomization = {
-    skin_color: "#F2C6A0",
-    hair_color: "#2B1A10",
-    shirt_color: "#E65C00",
-    pants_color: "#333333",
-    shoes_color: "#111111",
+type AvatarCustomizationForm = {
+    [Field in keyof UpdateAvatarCustomizationPayload]-?: Exclude<
+        UpdateAvatarCustomizationPayload[Field],
+        null | undefined
+    >;
 };
+
+type AvatarColorField =
+    | "skin_color"
+    | "hair_color"
+    | "shirt_color"
+    | "pants_color"
+    | "shoes_color";
+
+type AvatarItemField =
+    | "hair_style"
+    | "shirt_model"
+    | "pants_model"
+    | "shoes_model";
 
 const partLabels: Record<AvatarPart, string> = {
     skin: "Skin",
@@ -34,12 +55,19 @@ const partLabels: Record<AvatarPart, string> = {
     shoes: "Shoes",
 };
 
-const partColorFields: Record<AvatarPart, keyof typeof defaultCustomization> = {
+const partColorFields: Record<AvatarPart, AvatarColorField> = {
     skin: "skin_color",
     hair: "hair_color",
     shirt: "shirt_color",
     pants: "pants_color",
     shoes: "shoes_color",
+};
+
+const partItemFields: Record<AvatarItemPart, AvatarItemField> = {
+    hair: "hair_style",
+    shirt: "shirt_model",
+    pants: "pants_model",
+    shoes: "shoes_model",
 };
 
 const partColors = {
@@ -87,21 +115,37 @@ const CustomizeAvatarScreen: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [selectedPart, setSelectedPart] = useState<AvatarPart>("skin");
     const [customization, setCustomization] =
-        useState<typeof defaultCustomization>(defaultCustomization);
+        useState<AvatarCustomizationForm>({
+            ...AVATAR_DEFAULT_CUSTOMIZATION,
+        });
 
     const selectedColorField = partColorFields[selectedPart];
     const selectedPartLabel = partLabels[selectedPart];
+    const selectedItemPart = selectedPart === "skin" ? null : selectedPart;
+    const selectedItemField = selectedItemPart
+        ? partItemFields[selectedItemPart]
+        : null;
+    const selectedItemOptions = selectedItemPart
+        ? AVATAR_ITEM_OPTIONS[selectedItemPart].map((option) => ({
+              label: option.label,
+              value: option.id,
+          }))
+        : [];
 
     const fetchAvatarCustomization = useCallback(async () => {
         setLoading(true);
         try {
             const data = await getAvatarCustomization();
             setCustomization({
-                skin_color: data.skin_color || defaultCustomization.skin_color,
-                hair_color: data.hair_color || defaultCustomization.hair_color,
-                shirt_color: data.shirt_color || defaultCustomization.shirt_color,
-                pants_color: data.pants_color || defaultCustomization.pants_color,
-                shoes_color: data.shoes_color || defaultCustomization.shoes_color,
+                skin_color: data.skin_color || AVATAR_DEFAULT_CUSTOMIZATION.skin_color,
+                hair_color: data.hair_color || AVATAR_DEFAULT_CUSTOMIZATION.hair_color,
+                shirt_color: data.shirt_color || AVATAR_DEFAULT_CUSTOMIZATION.shirt_color,
+                pants_color: data.pants_color || AVATAR_DEFAULT_CUSTOMIZATION.pants_color,
+                shoes_color: data.shoes_color || AVATAR_DEFAULT_CUSTOMIZATION.shoes_color,
+                hair_style: data.hair_style || AVATAR_DEFAULT_CUSTOMIZATION.hair_style,
+                shirt_model: data.shirt_model || AVATAR_DEFAULT_CUSTOMIZATION.shirt_model,
+                pants_model: data.pants_model || AVATAR_DEFAULT_CUSTOMIZATION.pants_model,
+                shoes_model: data.shoes_model || AVATAR_DEFAULT_CUSTOMIZATION.shoes_model,
             });
         } catch (error: any) {
             showToast(getErrorMessage(error, "Failed to load avatar customization."), "danger");
@@ -125,6 +169,10 @@ const CustomizeAvatarScreen: React.FC = () => {
                 shirt_color: customization.shirt_color,
                 pants_color: customization.pants_color,
                 shoes_color: customization.shoes_color,
+                hair_style: customization.hair_style,
+                shirt_model: customization.shirt_model,
+                pants_model: customization.pants_model,
+                shoes_model: customization.shoes_model,
             });
             showToast("Avatar updated successfully", "success");
         } catch (error: any) {
@@ -141,8 +189,19 @@ const CustomizeAvatarScreen: React.FC = () => {
         }));
     };
 
+    const handleItemChange = (itemId: string) => {
+        if (!selectedItemField) {
+            return;
+        }
+
+        setCustomization((currentCustomization) => ({
+            ...currentCustomization,
+            [selectedItemField]: itemId,
+        }));
+    };
+
     const handleReset = () => {
-        setCustomization(defaultCustomization);
+        setCustomization({ ...AVATAR_DEFAULT_CUSTOMIZATION });
     };
 
     const avatarColors = useMemo(
@@ -170,6 +229,10 @@ const CustomizeAvatarScreen: React.FC = () => {
                             shirtColor={avatarColors.shirtColor}
                             pantsColor={avatarColors.pantsColor}
                             shoesColor={avatarColors.shoesColor}
+                            hairStyle={customization.hair_style}
+                            shirtModel={customization.shirt_model}
+                            pantsModel={customization.pants_model}
+                            shoesModel={customization.shoes_model}
                             showLoadingBackground={false}
                         />
                         {loading ? (
@@ -212,6 +275,18 @@ const CustomizeAvatarScreen: React.FC = () => {
                             selectedColor={customization[selectedColorField]}
                             onChange={handleColorChange}
                         />
+
+                        {selectedItemField ? (
+                            <View style={styles.itemSelector}>
+                                <SelectModal
+                                    label={`${selectedPartLabel} Model`}
+                                    options={selectedItemOptions}
+                                    value={customization[selectedItemField]}
+                                    onChange={handleItemChange}
+                                    placeholder={`Select ${selectedPartLabel} Model`}
+                                />
+                            </View>
+                        ) : null}
                     </View>
 
                     <View style={styles.actions}>
@@ -274,6 +349,10 @@ const styles = StyleSheet.create({
     sectionHeader: {
         gap: 4,
         marginBottom: 12,
+        width: "100%",
+    },
+    itemSelector: {
+        marginTop: 16,
         width: "100%",
     },
     actions: {

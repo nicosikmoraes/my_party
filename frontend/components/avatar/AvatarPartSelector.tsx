@@ -1,21 +1,15 @@
 import React from "react";
 import { View, Pressable, StyleSheet } from "react-native";
+import { AVATAR_PARTS } from "@/constants/avatarItems";
+import type { AvatarPart } from "@/types/avatar";
 import TextComponent from "../ui/Text";
 
-export type AvatarPart = "skin" | "hair" | "shirt" | "pants" | "shoes";
+export type { AvatarPart } from "@/types/avatar";
 
 interface AvatarPartSelectorProps {
   selectedPart: AvatarPart;
   onSelectPart: (part: AvatarPart) => void;
 }
-
-const parts: { label: string; value: AvatarPart }[] = [
-  { label: "Skin", value: "skin" },
-  { label: "Hair", value: "hair" },
-  { label: "Shirt", value: "shirt" },
-  { label: "Pants", value: "pants" },
-  { label: "Shoes", value: "shoes" },
-];
 
 export const AvatarPartSelector: React.FC<AvatarPartSelectorProps> = ({
   selectedPart,
@@ -23,7 +17,7 @@ export const AvatarPartSelector: React.FC<AvatarPartSelectorProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      {parts.map((part) => (
+      {AVATAR_PARTS.map((part) => (
         <Pressable
           key={part.value}
           style={[

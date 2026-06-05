@@ -29,6 +29,10 @@ type Avatar3DProps = {
   shirtColor?: string;
   pantsColor?: string;
   shoesColor?: string;
+  hairStyle?: string;
+  shirtModel?: string;
+  pantsModel?: string;
+  shoesModel?: string;
   showLoadingBackground?: boolean;
   onPress?: () => void;
 };

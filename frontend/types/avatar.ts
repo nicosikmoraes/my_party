@@ -1,3 +1,15 @@
+export type AvatarPart = "skin" | "hair" | "shirt" | "pants" | "shoes";
+
+export type AvatarItemPart = Exclude<AvatarPart, "skin">;
+
+export type AvatarItemOption = {
+    id: string;
+    label: string;
+    part: AvatarItemPart;
+    assetKey?: string;
+    assetPath?: string;
+};
+
 export type AvatarCustomization = {
     id?: number;
     user_id?: number;

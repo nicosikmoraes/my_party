@@ -5,6 +5,7 @@ import ErrorComponent from "@/components/ui/Error";
 import Loading from "@/components/ui/Loading";
 import TextComponent from "@/components/ui/Text";
 import TitleComponent from "@/components/ui/Title";
+import { AVATAR_DEFAULT_CUSTOMIZATION } from "@/constants/avatarItems";
 import { getUserProfile } from "@/services/user";
 import { FriendProfileGift, FriendProfileResponse } from "@/types/user";
 import { showToast } from "@/utils/toast";
@@ -100,11 +101,42 @@ export default function FriendProfileScreen() {
         <Avatar3D
           avatarUrl={user.avatar_url}
           size={340}
-          skinColor={user.avatar_customization?.skin_color || "#F2C6A0"}
-          hairColor={user.avatar_customization?.hair_color || "#2B1A10"}
-          shirtColor={user.avatar_customization?.shirt_color || "#E65C00"}
-          pantsColor={user.avatar_customization?.pants_color || "#333333"}
-          shoesColor={user.avatar_customization?.shoes_color || "#111111"}
+          skinColor={
+            user.avatar_customization?.skin_color ||
+            AVATAR_DEFAULT_CUSTOMIZATION.skin_color
+          }
+          hairColor={
+            user.avatar_customization?.hair_color ||
+            AVATAR_DEFAULT_CUSTOMIZATION.hair_color
+          }
+          shirtColor={
+            user.avatar_customization?.shirt_color ||
+            AVATAR_DEFAULT_CUSTOMIZATION.shirt_color
+          }
+          pantsColor={
+            user.avatar_customization?.pants_color ||
+            AVATAR_DEFAULT_CUSTOMIZATION.pants_color
+          }
+          shoesColor={
+            user.avatar_customization?.shoes_color ||
+            AVATAR_DEFAULT_CUSTOMIZATION.shoes_color
+          }
+          hairStyle={
+            user.avatar_customization?.hair_style ||
+            AVATAR_DEFAULT_CUSTOMIZATION.hair_style
+          }
+          shirtModel={
+            user.avatar_customization?.shirt_model ||
+            AVATAR_DEFAULT_CUSTOMIZATION.shirt_model
+          }
+          pantsModel={
+            user.avatar_customization?.pants_model ||
+            AVATAR_DEFAULT_CUSTOMIZATION.pants_model
+          }
+          shoesModel={
+            user.avatar_customization?.shoes_model ||
+            AVATAR_DEFAULT_CUSTOMIZATION.shoes_model
+          }
         />
 
         <View style={styles.section}>
