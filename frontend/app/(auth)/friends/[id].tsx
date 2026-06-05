@@ -26,20 +26,33 @@ export default function FriendProfileScreen() {
   const [expandedGiftIds, setExpandedGiftIds] = useState<number[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (friendId !== undefined && !Number.isNaN(friendId)) {
       const fetchFriendProfile = async () => {
         try {
           setLoading(true);
           const data = await getUserProfile(friendId);
+
+          if (cancelled) {
+            return;
+          }
+
           setFriendProfile(data);
           setError(null);
         } catch (err: any) {
+          if (cancelled) {
+            return;
+          }
+
           const errorMessage =
             err.response?.data?.message || "Failed to load friend profile.";
           setError(errorMessage);
           showToast(errorMessage, "danger");
         } finally {
-          setLoading(false);
+          if (!cancelled) {
+            setLoading(false);
+          }
         }
       };
       fetchFriendProfile();
@@ -48,6 +61,10 @@ export default function FriendProfileScreen() {
       setError("Friend ID not found.");
       showToast("Friend ID not found.", "danger");
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [friendId]);
 
   if (loading) {
