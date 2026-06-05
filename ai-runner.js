@@ -1,16 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
+import os from "os";
+import path from "path";
 import { execSync } from "child_process";
 import dotenv from "dotenv";
 
 dotenv.config();
-
-if (!process.env.GEMINI_API_KEY) {
-  console.error("❌ ERRO: GEMINI_API_KEY não encontrada no .env");
-  process.exit(1);
-}
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const taskName = process.argv[2];
 const shouldApply = process.argv.includes("--apply");
@@ -18,11 +13,23 @@ const shouldApply = process.argv.includes("--apply");
 const gitArg = process.argv.find((arg) => arg.startsWith("--git="));
 const gitMode = gitArg ? gitArg.replace("--git=", "") : "pr";
 
+const aiArg = process.argv.find((arg) => arg.startsWith("--ai="));
+const noGemini = process.argv.includes("--no-gemini");
+
+const aiMode = noGemini
+  ? "codex"
+  : aiArg
+    ? aiArg.replace("--ai=", "")
+    : "gemini-codex";
+
 const VALID_GIT_MODES = ["none", "commit", "pr"];
+const VALID_AI_MODES = ["gemini-codex", "codex"];
+
+const ALLOWED_PATHS = ["backend/", "frontend/"];
 
 if (!taskName) {
   console.log(
-    "⚠️ Uso: node ai-runner.js nome-da-task [--apply] [--git=none|commit|pr]",
+    "⚠️ Uso: node ai-runner.js nome-da-task [--apply] [--git=none|commit|pr] [--ai=gemini-codex|codex] [--no-gemini]",
   );
   process.exit(1);
 }
@@ -34,11 +41,29 @@ if (!VALID_GIT_MODES.includes(gitMode)) {
   process.exit(1);
 }
 
+if (!VALID_AI_MODES.includes(aiMode)) {
+  console.error(
+    "❌ Modo de IA inválido. Use: --ai=gemini-codex, --ai=codex ou --no-gemini",
+  );
+  process.exit(1);
+}
+
+if (aiMode === "gemini-codex" && !process.env.GEMINI_API_KEY) {
+  console.error("❌ ERRO: GEMINI_API_KEY não encontrada no .env");
+  console.error("Use --ai=codex ou --no-gemini para rodar sem Gemini.");
+  process.exit(1);
+}
+
+console.log(`🧠 AI mode ativo: ${aiMode}`);
+
+const genAI =
+  aiMode === "gemini-codex"
+    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    : null;
+
 const frontendComponents = fs.existsSync("./ai/frontend-components.md")
   ? fs.readFileSync("./ai/frontend-components.md", "utf-8")
   : "";
-
-const ALLOWED_PATHS = ["backend/", "frontend/"];
 
 function cleanContent(content) {
   return content
@@ -51,9 +76,12 @@ function normalizePath(filePath) {
   filePath = filePath.trim();
 
   if (
-    filePath.startsWith("app/") ||
     filePath.startsWith("routes/") ||
-    filePath.startsWith("database/")
+    filePath.startsWith("database/") ||
+    filePath.startsWith("app/Http/") ||
+    filePath.startsWith("app/Models/") ||
+    filePath.startsWith("app/Enums/") ||
+    filePath.startsWith("app/Providers/")
   ) {
     return `backend/${filePath}`;
   }
@@ -75,7 +103,7 @@ function normalizePath(filePath) {
 }
 
 function isAllowedPath(filePath) {
-  return ALLOWED_PATHS.some((path) => filePath.startsWith(path));
+  return ALLOWED_PATHS.some((allowedPath) => filePath.startsWith(allowedPath));
 }
 
 function escapeRegExp(string) {
@@ -94,70 +122,32 @@ function extractBlocks(output, marker) {
   let match;
 
   while ((match = regex.exec(output)) !== null) {
-    const filePath = match[1].trim();
+    const originalPath = match[1].trim();
+    const filePath = normalizePath(originalPath);
     const content = cleanContent(match[2]);
 
     if (!filePath || !content) continue;
 
-    blocks.push(`${marker} ${filePath}\n${content}`);
+    blocks.push({
+      originalPath,
+      filePath,
+      content,
+    });
   }
 
   return blocks;
 }
 
-function saveSeparatedOutputs(output, taskName) {
-  fs.mkdirSync("./ai/output", { recursive: true });
-
-  const rawOutputPath = `./ai/output/raw-${taskName}.md`;
-  const createOutputPath = `./ai/output/creates-${taskName}.md`;
-  const manualOutputPath = `./ai/output/manual-updates-${taskName}.md`;
-
-  const createBlocks = extractBlocks(output, "# CREATE:");
-  const manualUpdateBlocks = extractBlocks(output, "# MANUAL_UPDATE:");
-
-  const createBlocksText =
-    createBlocks.length > 0
-      ? createBlocks.join("\n\n")
-      : "Nenhum arquivo novo foi sugerido.";
-
-  const manualBlocksText =
-    manualUpdateBlocks.length > 0
-      ? manualUpdateBlocks.join("\n\n")
-      : "Nenhuma alteração manual foi sugerida.";
-
-  fs.writeFileSync(rawOutputPath, output);
-  fs.writeFileSync(createOutputPath, createBlocksText);
-  fs.writeFileSync(manualOutputPath, manualBlocksText);
-
-  return {
-    rawOutputPath,
-    createOutputPath,
-    manualOutputPath,
-    createBlocksText,
-    manualBlocksText,
-  };
-}
-
 function applyCreatesOnly(output) {
-  if (!output.includes("# CREATE:")) {
+  const createBlocks = extractBlocks(output, "# CREATE:");
+
+  if (createBlocks.length === 0) {
     console.log("⚠️ Nenhum arquivo novo para criar automaticamente.");
     return;
   }
 
-  const blocks = output.split("# CREATE:");
-
-  for (const block of blocks) {
-    if (!block.trim()) continue;
-
-    const lines = block.split("\n");
-
-    let filePath = lines[0].trim();
-    let content = lines.slice(1).join("\n");
-
-    filePath = normalizePath(filePath);
-    content = cleanContent(content);
-
-    if (!filePath) continue;
+  for (const block of createBlocks) {
+    const { filePath, content } = block;
 
     if (!isAllowedPath(filePath)) {
       console.log(`⚠️ Ignorado fora do escopo: ${filePath}`);
@@ -170,16 +160,26 @@ function applyCreatesOnly(output) {
     }
 
     try {
-      const dir = filePath.substring(0, filePath.lastIndexOf("/"));
+      const dir = path.dirname(filePath);
       fs.mkdirSync(dir, { recursive: true });
-
       fs.writeFileSync(filePath, content);
-
       console.log(`✅ Criado: ${filePath}`);
     } catch (err) {
       console.log(`❌ Erro ao criar ${filePath}: ${err.message}`);
     }
   }
+}
+
+function getManualUpdates(output) {
+  const blocks = extractBlocks(output, "# MANUAL_UPDATE:");
+
+  if (blocks.length === 0) {
+    return "Nenhuma alteração manual foi sugerida.";
+  }
+
+  return blocks
+    .map((block) => `# MANUAL_UPDATE: ${block.filePath}\n${block.content}`)
+    .join("\n\n");
 }
 
 function runCommand(command) {
@@ -194,6 +194,38 @@ function hasGitChanges() {
   return readCommand("git status --porcelain").length > 0;
 }
 
+function getGitStatus() {
+  try {
+    return execSync("git status --porcelain", {
+      encoding: "utf-8",
+      maxBuffer: 1024 * 1024 * 20,
+    });
+  } catch {
+    return "";
+  }
+}
+
+function getChangedFiles() {
+  const status = getGitStatus();
+
+  if (!status.trim()) {
+    return [];
+  }
+
+  return status
+    .split("\n")
+    .map((line) => {
+      const filePath = line.slice(3).trim();
+
+      if (filePath.includes(" -> ")) {
+        return filePath.split(" -> ").pop().trim();
+      }
+
+      return filePath;
+    })
+    .filter(Boolean);
+}
+
 function getGitDiff() {
   try {
     return execSync("git diff -- . ':!backend/giftdb'", {
@@ -203,6 +235,30 @@ function getGitDiff() {
   } catch {
     return "";
   }
+}
+
+function getUntrackedFilesPreview() {
+  const untrackedFiles = getGitStatus()
+    .split("\n")
+    .filter((line) => line.startsWith("?? "))
+    .map((line) => line.slice(3).trim())
+    .filter((filePath) => isAllowedPath(filePath))
+    .slice(0, 20);
+
+  if (untrackedFiles.length === 0) {
+    return "";
+  }
+
+  return untrackedFiles
+    .map((filePath) => {
+      try {
+        const content = fs.readFileSync(filePath, "utf-8");
+        return `# ${filePath}\n${content.slice(0, 8000)}`;
+      } catch {
+        return `# ${filePath}\nNão foi possível ler o arquivo.`;
+      }
+    })
+    .join("\n\n");
 }
 
 function ensureCleanWorkingTreeForGitFlow() {
@@ -243,23 +299,53 @@ function prepareGitFlow() {
   return branch;
 }
 
-function runCodex(prompt, outputPath) {
-  fs.mkdirSync("./ai/output", { recursive: true });
+function createTempFile(prefix, content) {
+  const tempPath = path.join(
+    os.tmpdir(),
+    `${prefix}-${taskName}-${Date.now()}-${Math.random()
+      .toString(16)
+      .slice(2)}.md`,
+  );
 
-  const tempPromptPath = `./ai/output/codex-prompt-${taskName}-${Date.now()}.md`;
-  fs.writeFileSync(tempPromptPath, prompt);
+  fs.writeFileSync(tempPath, content);
+  return tempPath;
+}
 
-  const command = `codex exec -C . -s workspace-write -o ${outputPath} - < ${tempPromptPath}`;
+function removeFileIfExists(filePath) {
+  try {
+    fs.rmSync(filePath, { force: true });
+  } catch {
+    // ignore cleanup errors
+  }
+}
+
+function runCodex(prompt, outputPath, sandbox = "workspace-write") {
+  const tempPromptPath = createTempFile("codex-prompt", prompt);
+  const safeOutputPath = JSON.stringify(outputPath);
+  const safePromptPath = JSON.stringify(tempPromptPath);
+
+  const command = `codex exec -C . -s ${sandbox} --skip-git-repo-check -o ${safeOutputPath} - < ${safePromptPath}`;
 
   console.log(`\n🤖 Rodando Codex...`);
   runCommand(command);
 
-  fs.rmSync(tempPromptPath, { force: true });
+  removeFileIfExists(tempPromptPath);
 }
 
-function runCodexManualUpdates({ manualOutputPath, taskPath }) {
-  const manualUpdates = fs.readFileSync(manualOutputPath, "utf-8");
+function runCodexToTemp(prompt, sandbox = "workspace-write") {
+  const outputPath = createTempFile("codex-output", "");
+  runCodex(prompt, outputPath, sandbox);
 
+  const content = fs.existsSync(outputPath)
+    ? fs.readFileSync(outputPath, "utf-8")
+    : "";
+
+  removeFileIfExists(outputPath);
+
+  return content;
+}
+
+function runCodexManualUpdates({ manualUpdates, taskPath }) {
   if (
     !manualUpdates.trim() ||
     manualUpdates.includes("Nenhuma alteração manual foi sugerida.")
@@ -269,7 +355,9 @@ function runCodexManualUpdates({ manualOutputPath, taskPath }) {
   }
 
   const task = fs.readFileSync(taskPath, "utf-8");
-  const rules = fs.readFileSync("./ai/rules.md", "utf-8");
+  const rules = fs.existsSync("./ai/rules.md")
+    ? fs.readFileSync("./ai/rules.md", "utf-8")
+    : "";
 
   const prompt = `
 Você é o Codex atuando dentro deste repositório.
@@ -287,6 +375,8 @@ Sua responsabilidade:
 - Reutilizar componentes e services existentes.
 - Não mexer em backend/giftdb.
 - Não alterar arquivos fora de backend/ e frontend/, exceto se for indispensável para a task.
+- Não alterar .env, credenciais, node_modules, vendor, dist ou build.
+- Não executar comandos destrutivos.
 
 # TASK ORIGINAL
 
@@ -304,10 +394,7 @@ Aplique essas alterações diretamente nos arquivos existentes.
 Depois responda de forma curta listando o que foi alterado.
 `;
 
-  const outputPath = `./ai/output/codex-apply-${taskName}.md`;
-  runCodex(prompt, outputPath);
-
-  console.log(`📝 Resultado do Codex salvo em: ${outputPath}`);
+  runCodexToTemp(prompt);
 }
 
 function runCodexReview({ taskPath }) {
@@ -331,6 +418,8 @@ Sua responsabilidade:
 - Não fazer push.
 - Não abrir Pull Request.
 - Não mexer em backend/giftdb.
+- Não alterar .env, credenciais, node_modules, vendor, dist ou build.
+- Não executar comandos destrutivos.
 
 # TASK ORIGINAL
 
@@ -344,10 +433,145 @@ Revise e corrija diretamente os arquivos se encontrar problemas.
 Depois responda resumindo o que foi revisado/corrigido.
 `;
 
-  const outputPath = `./ai/output/codex-review-${taskName}.md`;
-  runCodex(prompt, outputPath);
+  runCodexToTemp(prompt);
+}
 
-  console.log(`🔎 Revisão do Codex salva em: ${outputPath}`);
+function runCodexFullImplementation({ taskPath }) {
+  const system = fs.existsSync("./ai/system.md")
+    ? fs.readFileSync("./ai/system.md", "utf-8")
+    : "";
+
+  const context = fs.existsSync("./ai/context.md")
+    ? fs.readFileSync("./ai/context.md", "utf-8")
+    : "";
+
+  const rules = fs.existsSync("./ai/rules.md")
+    ? fs.readFileSync("./ai/rules.md", "utf-8")
+    : "";
+
+  const task = fs.readFileSync(taskPath, "utf-8");
+
+  const prompt = `
+Você é o Codex atuando como agente principal deste repositório.
+
+Nesta execução, o Gemini está desativado.
+Você deve fazer tudo:
+- interpretar a task;
+- criar arquivos novos se necessário;
+- editar arquivos existentes se necessário;
+- revisar o próprio resultado.
+
+Regras obrigatórias:
+- NÃO criar branch.
+- NÃO fazer commit.
+- NÃO fazer push.
+- NÃO abrir Pull Request.
+- NÃO alterar arquivos fora de backend/ e frontend/, exceto se for indispensável para a task.
+- NÃO mexer em backend/giftdb.
+- NÃO alterar .env, credenciais, node_modules, vendor, dist ou build.
+- NÃO executar comandos destrutivos.
+- NÃO reescrever arquivos inteiros sem necessidade.
+- Preservar comportamento existente.
+- Fazer somente as alterações necessárias para cumprir a task.
+- Reutilizar componentes, services, hooks e padrões existentes.
+
+# SYSTEM
+
+${system}
+
+# CONTEXT
+
+${context}
+
+# RULES
+
+${rules}
+
+# FRONTEND COMPONENTS
+
+${frontendComponents}
+
+# TASK
+
+${task}
+
+Implemente a task diretamente nos arquivos do projeto.
+Depois revise o resultado e corrija problemas óbvios.
+Ao final, responda de forma curta com o que foi feito.
+`;
+
+  runCodexToTemp(prompt);
+}
+
+function generateFinalOutput({ taskPath, outputPath }) {
+  const task = fs.readFileSync(taskPath, "utf-8");
+  const status = getGitStatus();
+  const diff = getGitDiff();
+  const changedFiles = getChangedFiles();
+  const untrackedPreview = getUntrackedFilesPreview();
+
+  const prompt = `
+Você é o Codex escrevendo o relatório final da implementação.
+
+Sua responsabilidade:
+- Escrever SOMENTE o conteúdo do relatório final em Markdown.
+- NÃO alterar arquivos do projeto.
+- NÃO fazer commit.
+- NÃO fazer push.
+- NÃO abrir Pull Request.
+- NÃO executar comandos.
+- NÃO editar arquivos.
+
+O relatório deve ter exatamente esta estrutura:
+
+# Implementation Summary
+
+## General Summary
+
+Explique de forma objetiva o que foi implementado.
+
+## Changed Files
+
+Para cada arquivo alterado ou criado, escreva:
+
+### caminho/do/arquivo.ext
+
+- O que mudou neste arquivo.
+- Por que essa alteração foi necessária.
+- Observações importantes, se houver.
+
+## Review Notes
+
+Liste pontos que o usuário deve revisar/testar.
+
+Se não houver algo para revisar, escreva uma frase curta dizendo isso.
+
+# TASK ORIGINAL
+
+${task}
+
+# AI MODE
+
+${aiMode}
+
+# GIT STATUS
+
+${status || "Sem alterações listadas pelo git status."}
+
+# CHANGED FILES
+
+${changedFiles.length > 0 ? changedFiles.join("\n") : "Nenhum arquivo alterado detectado."}
+
+# GIT DIFF
+
+${diff || "Sem diff disponível."}
+
+# UNTRACKED FILES PREVIEW
+
+${untrackedPreview || "Nenhum arquivo novo não rastreado para pré-visualizar."}
+`;
+
+  runCodex(prompt, outputPath, "read-only");
 }
 
 function commitChanges() {
@@ -368,13 +592,15 @@ function createPullRequest(branch, prBodyPath) {
   console.log("🚀 Criando Pull Request...");
 
   runCommand(
-    `gh pr create --title "AI: ${taskName}" --body-file ${prBodyPath}`,
+    `gh pr create --title "AI: ${taskName}" --body-file ${JSON.stringify(
+      prBodyPath,
+    )}`,
   );
 
   console.log("✅ PR criado com sucesso!");
 }
 
-function buildPrompt({ system, context, rules, task }) {
+function buildGeminiPrompt({ system, context, rules, task }) {
   return `
 ${system}
 
@@ -423,29 +649,8 @@ REGRAS:
 `;
 }
 
-async function run() {
-  const MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.0-flash-lite",
-  ];
-
-  const taskPath = `./ai/tasks/${taskName}.md`;
-
-  let prompt;
-
-  try {
-    const system = fs.readFileSync("./ai/system.md", "utf-8");
-    const context = fs.readFileSync("./ai/context.md", "utf-8");
-    const rules = fs.readFileSync("./ai/rules.md", "utf-8");
-    const task = fs.readFileSync(taskPath, "utf-8");
-
-    prompt = buildPrompt({ system, context, rules, task });
-  } catch (err) {
-    console.error("❌ Erro ao ler arquivos .md:");
-    console.error(err.message);
-    return;
-  }
+async function runGeminiCodexFlow({ taskPath, prompt }) {
+  const MODELS = ["gemini-2.5-flash", "gemini-2.5-pro"];
 
   for (const modelName of MODELS) {
     try {
@@ -468,30 +673,18 @@ async function run() {
       console.log("\n📦 Preview output:");
       console.log(text.slice(0, 500));
 
-      const {
-        rawOutputPath,
-        createOutputPath,
-        manualOutputPath,
-        createBlocksText,
-      } = saveSeparatedOutputs(text, taskName);
-
-      console.log(`\n💾 Output bruto salvo em: ${rawOutputPath}`);
-      console.log(`💾 Arquivos novos salvos em: ${createOutputPath}`);
-      console.log(`📝 Alterações manuais salvas em: ${manualOutputPath}`);
-
       if (!shouldApply) {
         console.log("\n✅ Modo preview. Nada foi aplicado.");
-        return;
+        return true;
       }
 
-      const branch = prepareGitFlow();
-
       console.log("\n⚙️ Gemini criando apenas arquivos novos...");
-      applyCreatesOnly(createBlocksText);
+      applyCreatesOnly(text);
 
       console.log("\n🛠️ Codex aplicando alterações em arquivos existentes...");
+      const manualUpdates = getManualUpdates(text);
       runCodexManualUpdates({
-        manualOutputPath,
+        manualUpdates,
         taskPath,
       });
 
@@ -500,56 +693,118 @@ async function run() {
         taskPath,
       });
 
-      const prBody = `
-Gerado automaticamente pelo fluxo híbrido Gemini + Codex.
-
-Gemini:
-- Gerou arquivos novos.
-- Gerou instruções de alterações manuais.
-
-Codex:
-- Aplicou alterações em arquivos existentes.
-- Revisou o diff final.
-
-Arquivos de apoio:
-- Output bruto: ${rawOutputPath}
-- Arquivos novos: ${createOutputPath}
-- Alterações manuais: ${manualOutputPath}
-- Aplicação Codex: ./ai/output/codex-apply-${taskName}.md
-- Revisão Codex: ./ai/output/codex-review-${taskName}.md
-`;
-
-      const prBodyPath = `./ai/output/pr-body-${taskName}.md`;
-      fs.writeFileSync(prBodyPath, prBody);
-
-      if (gitMode === "none") {
-        console.log("\n✅ Aplicado localmente sem commit e sem PR.");
-        console.log("Use git diff para revisar.");
-        return;
-      }
-
-      const committed = commitChanges();
-
-      if (!committed) return;
-
-      if (gitMode === "commit") {
-        console.log("\n✅ Branch criada e commit feito. PR não foi aberto.");
-        return;
-      }
-
-      if (gitMode === "pr") {
-        createPullRequest(branch, prBodyPath);
-        return;
-      }
-
-      return;
+      return true;
     } catch (err) {
       console.log(`❌ Falhou: ${modelName}`);
       console.log(`   Motivo: ${err.message}`);
     }
   }
 
-  console.log("\n🚨 Nenhum modelo funcionou.");
+  return false;
+}
+
+async function run() {
+  const taskPath = `./ai/tasks/${taskName}.md`;
+  const outputPath = `./ai/output/implementation-summary-${taskName}.md`;
+
+  let system;
+  let context;
+  let rules;
+  let task;
+  let geminiPrompt;
+
+  try {
+    system = fs.existsSync("./ai/system.md")
+      ? fs.readFileSync("./ai/system.md", "utf-8")
+      : "";
+
+    context = fs.existsSync("./ai/context.md")
+      ? fs.readFileSync("./ai/context.md", "utf-8")
+      : "";
+
+    rules = fs.existsSync("./ai/rules.md")
+      ? fs.readFileSync("./ai/rules.md", "utf-8")
+      : "";
+
+    task = fs.readFileSync(taskPath, "utf-8");
+
+    geminiPrompt = buildGeminiPrompt({ system, context, rules, task });
+  } catch (err) {
+    console.error("❌ Erro ao ler arquivos .md:");
+    console.error(err.message);
+    return;
+  }
+
+  try {
+    const branch = shouldApply ? prepareGitFlow() : null;
+
+    if (aiMode === "gemini-codex") {
+      const success = await runGeminiCodexFlow({
+        taskPath,
+        prompt: geminiPrompt,
+      });
+
+      if (!success) {
+        console.log("\n🚨 Nenhum modelo Gemini funcionou.");
+        return;
+      }
+    }
+
+    if (aiMode === "codex") {
+      if (!shouldApply) {
+        console.log(
+          "\n✅ Modo preview com --ai=codex. Nada foi aplicado porque Codex executa alterações diretamente.",
+        );
+        console.log(
+          "Use --apply --ai=codex para permitir que o Codex implemente a task.",
+        );
+        return;
+      }
+
+      console.log("\n🤖 Codex implementando a task inteira sem Gemini...");
+      runCodexFullImplementation({ taskPath });
+
+      console.log("\n🔎 Codex revisando o resultado final...");
+      runCodexReview({ taskPath });
+    }
+
+    if (!shouldApply) {
+      return;
+    }
+
+    fs.mkdirSync("./ai/output", { recursive: true });
+
+    console.log("\n🧾 Gerando output final único...");
+    generateFinalOutput({
+      taskPath,
+      outputPath,
+    });
+
+    console.log(`✅ Output final salvo em: ${outputPath}`);
+
+    if (gitMode === "none") {
+      console.log("\n✅ Aplicado localmente sem commit e sem PR.");
+      console.log("Use git diff para revisar.");
+      return;
+    }
+
+    const committed = commitChanges();
+
+    if (!committed) return;
+
+    if (gitMode === "commit") {
+      console.log("\n✅ Branch criada e commit feito. PR não foi aberto.");
+      return;
+    }
+
+    if (gitMode === "pr") {
+      createPullRequest(branch, outputPath);
+      return;
+    }
+  } catch (err) {
+    console.error("❌ Erro durante execução:");
+    console.error(err.message);
+  }
 }
 
 run();
