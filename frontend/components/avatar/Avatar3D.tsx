@@ -17,6 +17,7 @@ import {
 } from "react-native";
 
 const DEFAULT_AVATAR_MODEL = require("../../assets/models/avatar.glb");
+const SHORT_HAIR_MODEL = require("../../assets/models/avatar/hair/hair_short.glb");
 
 type Avatar3DProps = {
   avatarUrl?: string | null;
@@ -83,7 +84,11 @@ function getWebThreeModules() {
 }
 
 async function getDefaultAvatarUri() {
-  const asset = Asset.fromModule(DEFAULT_AVATAR_MODEL);
+  return getAssetUri(DEFAULT_AVATAR_MODEL);
+}
+
+async function getAssetUri(assetModule: number) {
+  const asset = Asset.fromModule(assetModule);
 
   await asset.downloadAsync();
 
@@ -126,8 +131,8 @@ function base64ToArrayBuffer(base64: string) {
   return new Uint8Array(bytes).buffer;
 }
 
-async function loadDefaultAvatarForNative(GLTFLoader: any) {
-  const modelUri = await getDefaultAvatarUri();
+async function loadAssetForNative(GLTFLoader: any, assetModule: number) {
+  const modelUri = await getAssetUri(assetModule);
   const FileSystem = require("expo-file-system/legacy");
   const base64Model = await FileSystem.readAsStringAsync(modelUri, {
     encoding: FileSystem.EncodingType.Base64,
@@ -137,6 +142,10 @@ async function loadDefaultAvatarForNative(GLTFLoader: any) {
   return new Promise<any>((resolve, reject) => {
     new GLTFLoader().parse(modelBuffer, "", resolve, reject);
   });
+}
+
+async function loadDefaultAvatarForNative(GLTFLoader: any) {
+  return loadAssetForNative(GLTFLoader, DEFAULT_AVATAR_MODEL);
 }
 
 function disposeModel(model: any) {
@@ -235,6 +244,53 @@ function applyAvatarColors(
   });
 }
 
+function applyColorToModel(model: any, color: string, threeRuntime: any) {
+  model.traverse((object: any) => {
+    if (!object?.isMesh || !object.material) {
+      return;
+    }
+
+    if (Array.isArray(object.material)) {
+      object.material = object.material.map((material: any) =>
+        cloneMaterialWithColor(material, color, threeRuntime),
+      );
+      return;
+    }
+
+    object.material = cloneMaterialWithColor(
+      object.material,
+      color,
+      threeRuntime,
+    );
+  });
+}
+
+function hideBaseHair(model: any) {
+  const hasHairName = (name: string | undefined) =>
+    String(name || "").toLowerCase().includes("hair");
+
+  model.traverse((object: any) => {
+    if (hasHairName(object.name)) {
+      object.visible = false;
+      return;
+    }
+
+    if (!object?.isMesh) {
+      return;
+    }
+
+    if (Array.isArray(object.material)) {
+      object.material.forEach((material: any) => {
+        if (hasHairName(material?.name)) {
+          material.visible = false;
+        }
+      });
+    } else if (hasHairName(object.material?.name)) {
+      object.visible = false;
+    }
+  });
+}
+
 export default function Avatar3D({
   avatarUrl,
   width,
@@ -246,6 +302,7 @@ export default function Avatar3D({
   shirtColor,
   pantsColor,
   shoesColor,
+  hairStyle,
   showLoadingBackground = true,
   onPress,
 }: Avatar3DProps) {
@@ -458,13 +515,38 @@ export default function Avatar3D({
 
         model.position.set(-center.x, -center.y, -center.z);
         avatarGroup.add(model);
+
+        if (hairStyle === "short") {
+          try {
+            const hairUri = await getAssetUri(SHORT_HAIR_MODEL);
+            const hairGltf = await new GLTFLoader().loadAsync(hairUri);
+            const hairModel = hairGltf.scene;
+
+            if (hairColor) {
+              applyColorToModel(hairModel, hairColor, ThreeRuntime);
+            }
+
+            hairModel.position.copy(model.position);
+            avatarGroup.add(hairModel);
+            hideBaseHair(model);
+          } catch (error) {
+            console.log("Avatar short hair load error:", error);
+          }
+        }
+
+        if (disposed || loadIdRef.current !== currentLoadId) {
+          disposeModel(avatarGroup);
+          return;
+        }
+
         avatarGroup.scale.setScalar(scale);
         avatarGroup.rotation.x = rotationRef.current.x;
         avatarGroup.rotation.y = rotationRef.current.y;
         scene.add(avatarGroup);
 
         avatarGroupRef.current = avatarGroup;
-        modelRef.current = avatarGroup;
+        model = avatarGroup;
+        modelRef.current = model;
 
         setLoading(false);
         setLoadError(false);
@@ -517,6 +599,7 @@ export default function Avatar3D({
     avatarWidth,
     backgroundColor,
     hairColor,
+    hairStyle,
     modelSource,
     pantsColor,
     shirtColor,
@@ -668,6 +751,32 @@ export default function Avatar3D({
         model.position.set(-center.x, -center.y, -center.z);
 
         avatarGroup.add(model);
+
+        if (hairStyle === "short") {
+          try {
+            const hairGltf = await loadAssetForNative(
+              GLTFLoader,
+              SHORT_HAIR_MODEL,
+            );
+            const hairModel = hairGltf.scene;
+
+            if (hairColor) {
+              applyColorToModel(hairModel, hairColor, ThreeRuntime);
+            }
+
+            hairModel.position.copy(model.position);
+            avatarGroup.add(hairModel);
+            hideBaseHair(model);
+          } catch (error) {
+            console.log("Avatar short hair load error:", error);
+          }
+        }
+
+        if (!isMountedRef.current || loadIdRef.current !== currentLoadId) {
+          disposeModel(avatarGroup);
+          return;
+        }
+
         avatarGroup.scale.setScalar(scale);
         avatarGroup.position.set(0, 0, 0);
         avatarGroup.rotation.x = rotationRef.current.x;
@@ -713,6 +822,7 @@ export default function Avatar3D({
     [
       backgroundColor,
       hairColor,
+      hairStyle,
       modelSource,
       pantsColor,
       shirtColor,
@@ -731,6 +841,7 @@ export default function Avatar3D({
     modelSource || "default-avatar",
     skinColor || "",
     hairColor || "",
+    hairStyle || "",
     shirtColor || "",
     pantsColor || "",
     shoesColor || "",
