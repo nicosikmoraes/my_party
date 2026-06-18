@@ -9,13 +9,13 @@ import {
     AvatarPartSelector,
 } from "@/components/avatar/AvatarPartSelector";
 import BlankTemplate from "@/components/template/Blank";
-import SelectModal from "@/components/ui/ModalSelect";
+import HairStyleCardSelector from "@/components/avatar/HairStyleCardSelector";
 import PressableComponent from "@/components/ui/Pressable";
 import TextComponent from "@/components/ui/Text";
 import TitleComponent from "@/components/ui/Title";
 import {
     AVATAR_DEFAULT_CUSTOMIZATION,
-    AVATAR_ITEM_OPTIONS,
+    HAIR_STYLE_OPTIONS,
 } from "@/constants/avatarItems";
 import {
     getAvatarCustomization,
@@ -125,12 +125,6 @@ const CustomizeAvatarScreen: React.FC = () => {
     const selectedItemField = selectedItemPart
         ? partItemFields[selectedItemPart]
         : null;
-    const selectedItemOptions = selectedItemPart
-        ? AVATAR_ITEM_OPTIONS[selectedItemPart].map((option) => ({
-              label: option.label,
-              value: option.id,
-          }))
-        : [];
 
     const fetchAvatarCustomization = useCallback(async () => {
         setLoading(true);
@@ -276,14 +270,13 @@ const CustomizeAvatarScreen: React.FC = () => {
                             onChange={handleColorChange}
                         />
 
-                        {selectedItemField ? (
+                        {selectedPart === "hair" ? (
                             <View style={styles.itemSelector}>
-                                <SelectModal
-                                    label={`${selectedPartLabel} Model`}
-                                    options={selectedItemOptions}
-                                    value={customization[selectedItemField]}
+                                <HairStyleCardSelector
+                                    options={HAIR_STYLE_OPTIONS}
+                                    value={customization.hair_style}
                                     onChange={handleItemChange}
-                                    placeholder={`Select ${selectedPartLabel} Model`}
+                                    hairColor={customization.hair_color}
                                 />
                             </View>
                         ) : null}

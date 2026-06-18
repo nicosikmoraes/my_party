@@ -29,10 +29,8 @@ export const AVATAR_PARTS: ReadonlyArray<{
 ];
 
 export const HAIR_STYLE_OPTIONS: AvatarItemOption[] = [
-  { id: "default", label: "Default Hair", part: "hair", assetKey: "hair_default" },
-  { id: "short", label: "Short Hair", part: "hair", assetKey: "hair_short" },
-  { id: "medium", label: "Medium Hair", part: "hair", assetKey: "hair_medium" },
-  { id: "curly", label: "Curly Hair", part: "hair", assetKey: "hair_curly" },
+  { id: "default", label: "Default", part: "hair", assetKey: "hair_default" },
+  { id: "short", label: "Short", part: "hair", assetKey: "hair_short" },
 ];
 
 export const SHIRT_MODEL_OPTIONS: AvatarItemOption[] = [
