@@ -5,6 +5,7 @@ import SideMenu from "@/components/menu/SideMenu";
 import BlankTemplate from "@/components/template/Blank";
 import IconButton from "@/components/ui/PressableIcon";
 import TitleComponent from "@/components/ui/Title";
+import { AVATAR_DEFAULT_CUSTOMIZATION } from "@/constants/avatarItems";
 import { useAuth } from "@/hooks/useAuth";
 import { getAvatarCustomization } from "@/services/avatarCustomizationService";
 import { AvatarCustomization } from "@/types/avatar";
@@ -59,11 +60,42 @@ export default function Home() {
           <Avatar3D
             avatarUrl={user?.avatar_url}
             size={340}
-            skinColor={avatarCustomization?.skin_color || "#F2C6A0"}
-            hairColor={avatarCustomization?.hair_color || "#2B1A10"}
-            shirtColor={avatarCustomization?.shirt_color || "#E65C00"}
-            pantsColor={avatarCustomization?.pants_color || "#333333"}
-            shoesColor={avatarCustomization?.shoes_color || "#111111"}
+            skinColor={
+              avatarCustomization?.skin_color ||
+              AVATAR_DEFAULT_CUSTOMIZATION.skin_color
+            }
+            hairColor={
+              avatarCustomization?.hair_color ||
+              AVATAR_DEFAULT_CUSTOMIZATION.hair_color
+            }
+            shirtColor={
+              avatarCustomization?.shirt_color ||
+              AVATAR_DEFAULT_CUSTOMIZATION.shirt_color
+            }
+            pantsColor={
+              avatarCustomization?.pants_color ||
+              AVATAR_DEFAULT_CUSTOMIZATION.pants_color
+            }
+            shoesColor={
+              avatarCustomization?.shoes_color ||
+              AVATAR_DEFAULT_CUSTOMIZATION.shoes_color
+            }
+            hairStyle={
+              avatarCustomization?.hair_style ||
+              AVATAR_DEFAULT_CUSTOMIZATION.hair_style
+            }
+            shirtModel={
+              avatarCustomization?.shirt_model ||
+              AVATAR_DEFAULT_CUSTOMIZATION.shirt_model
+            }
+            pantsModel={
+              avatarCustomization?.pants_model ||
+              AVATAR_DEFAULT_CUSTOMIZATION.pants_model
+            }
+            shoesModel={
+              avatarCustomization?.shoes_model ||
+              AVATAR_DEFAULT_CUSTOMIZATION.shoes_model
+            }
             showLoadingBackground={false}
             onPress={() => router.push("/avatar/customize")}
           />

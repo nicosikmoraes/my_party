@@ -7,8 +7,10 @@ import IconButton from "../ui/PressableIcon";
 export default function FooterDefault() {
   const pathname = usePathname();
 
-  const isHome = pathname.startsWith("/home");
-  const isEvents = pathname.startsWith("/events");
+  const isHome = pathname === "/home";
+  const isEvents = pathname === "/events";
+
+  if (!isHome && !isEvents) return null;
 
   return (
     <View style={styles.container}>
