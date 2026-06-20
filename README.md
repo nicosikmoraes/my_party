@@ -23,7 +23,7 @@ Além disso, o sistema permite a criação de eventos onde os participantes pode
 - [ ] Marcar presente como comprado (modo aniversário)
 - [x] Visitar o perfil do seus amigos
 - [x] Avatares (Primeira versão)
-- [ ] Customizar avatar
+- [x] Customizar avatar
 
 ### Tipos de evento
 
@@ -90,13 +90,8 @@ https://youtube.com/shorts/ezpm__sjcHc
 
 ### Sprint 5 (Semana 9)
 
-- Sugestões de presentes em eventos
-- Criação de testes
-- Sorteio automático do amigo secreto
-
-### Sprint extra
-
 - Customização do avatar
+- Melhoria no evento
 
 ## Atualizações desde o último checkpoint
 
